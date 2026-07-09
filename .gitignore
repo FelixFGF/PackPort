@@ -1,0 +1,13 @@
+# Gradle distribution
+gradle-distribution/
+
+# Gradle build/cache
+.gradle/
+
+# Build output
+build/
+**/build/
+
+# Frontend
+node_modules/
+dist/
