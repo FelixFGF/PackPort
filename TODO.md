@@ -1,0 +1,14 @@
+- [ ] Backend: ConversionJob.java um Feld `exportNameBase` (String) inkl. Getter/Setter erweitern.
+- [ ] Backend: UploadController.java
+  - [ ] POST /api/upload erweitern um optionales Multipart-Feld `exportNameBase`
+  - [ ] Wert in `ConversionJob` setzen, bevor `conversionService.convert(job)` aufgerufen wird.
+- [ ] Backend: ConversionService.java `buildExportFileName()` so ändern, dass:
+  - [ ] `job.getExportNameBase()` als Base-Name verwendet wird (wenn gesetzt & nicht blank)
+  - [ ] sonst `manifestInfo.getPackName()`
+  - [ ] sonst UUID-Base fallback
+- [ ] Frontend: WelcomePage.tsx
+  - [ ] UI: optionales Eingabefeld „Export-Dateiname“ (Basisname) ergänzen, default leer
+  - [ ] beim Upload `formData.append("exportNameBase", value)` senden (nur wenn nicht leer/trim)
+- [ ] Backend Build: `./gradlew build` (oder passendes Script)
+- [ ] Frontend Build: `npm run build`
+- [ ] Kurzer End-to-End Test: echtes CurseForge-Modpack hochladen und prüfen, dass Export-Dateiname dem gewünschten Basisnamen folgt (Suffix/Endung automatisch).
