@@ -1,14 +1,7 @@
-- [ ] Backend: ConversionJob.java um Feld `exportNameBase` (String) inkl. Getter/Setter erweitern.
-- [ ] Backend: UploadController.java
-  - [ ] POST /api/upload erweitern um optionales Multipart-Feld `exportNameBase`
-  - [ ] Wert in `ConversionJob` setzen, bevor `conversionService.convert(job)` aufgerufen wird.
-- [ ] Backend: ConversionService.java `buildExportFileName()` so ändern, dass:
-  - [ ] `job.getExportNameBase()` als Base-Name verwendet wird (wenn gesetzt & nicht blank)
-  - [ ] sonst `manifestInfo.getPackName()`
-  - [ ] sonst UUID-Base fallback
-- [ ] Frontend: WelcomePage.tsx
-  - [ ] UI: optionales Eingabefeld „Export-Dateiname“ (Basisname) ergänzen, default leer
-  - [ ] beim Upload `formData.append("exportNameBase", value)` senden (nur wenn nicht leer/trim)
-- [ ] Backend Build: `./gradlew build` (oder passendes Script)
-- [ ] Frontend Build: `npm run build`
-- [ ] Kurzer End-to-End Test: echtes CurseForge-Modpack hochladen und prüfen, dass Export-Dateiname dem gewünschten Basisnamen folgt (Suffix/Endung automatisch).
+- [ ] Backend: `ModrinthExportService` so ändern, dass `index.setFiles()` mit echten Modrinth-Dateieinträgen befüllt wird (keine `Collections.emptyList()` mehr).
+- [ ] Backend: `CurseForgeModResolutionService` implementieren/ergänzen, um `projectID + fileID` über CurseForge API aufzulösen (Dateiname, Download-URL, Size, SHA1/SHA512).
+- [ ] Backend: Modrinth-Client/DTOs nutzen, um passende Modrinth-Version zu finden und die Version-`files[]` zu übernehmen (downloads/hashes.sha1/hashes.sha512/fileSize/path).
+- [ ] Backend: Fehlerbehandlung + Skip wenn einzelne Mods nicht auflösbar sind (ohne Hardcodes, ohne Dummy-Daten).
+- [ ] Backend bauen: `./gradlew build` und Buildfehler beheben.
+- [ ] Validierung: Beispiel `modrinth.index.json` aus einer echten Phase1-Exportausführung zeigen (manuell prüfen), dass `files[]` nicht leer ist.
+- [ ] Validierung: erzeugte `.mrpack` im offiziellen Modrinth Launcher importieren (funktional prüfbar).

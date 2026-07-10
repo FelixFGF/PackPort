@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { GitFork, Lock, LoaderCircle, Sparkles } from "lucide-react";
+import { GitFork, Lock, LoaderCircle } from "lucide-react";
 import { usePackBridgeFlow } from "../hooks/usePackBridgeFlow";
 import { useJobStatus } from "../hooks/useJobStatus";
 
@@ -18,6 +18,22 @@ function pathToIndex(pathname: string) {
   return found >= 0 ? found : 0;
 }
 
+function getSessionItem(key: string) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionItem(key: string, value: string) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
 export function StepLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,19 +41,29 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
   const { uploadFileName, jobId, step } = usePackBridgeFlow();
   const { status } = useJobStatus(jobId);
 
+  const [discordModalOpen, setDiscordModalOpen] = useState(false);
+
+  const [alphaModalOpen, setAlphaModalOpen] = useState(false);
+  const ALPHA_SESSION_KEY = "packport.alphaNoticeShown";
+
   const activeIndex = pathToIndex(location.pathname);
+
+  // Alpha warning: show once per session when user first opens the website.
+  useEffect(() => {
+    const alreadyShown = getSessionItem(ALPHA_SESSION_KEY) === "1";
+    if (!alreadyShown) {
+      setAlphaModalOpen(true);
+    }
+  }, []);
+
+  const closeAlphaModal = () => {
+    setAlphaModalOpen(false);
+    setSessionItem(ALPHA_SESSION_KEY, "1");
+  };
 
   // Guard: if user opens any step route without job context, redirect to Welcome.
   useEffect(() => {
-    if (
-      // Fix inconsistent jobId source during hydration:
-      // Only redirect if we truly have no active job (no jobId) AND backend is not DONE/FAILED yet.
-      // This prevents an early redirect that would hide manifestInfo on /finished.
-      !jobId &&
-      location.pathname !== "/" &&
-      status !== "DONE" &&
-      status !== "FAILED"
-    ) {
+    if (!jobId && location.pathname !== "/" && status !== "DONE" && status !== "FAILED") {
       console.log("[StepLayout] guard redirect to /", {
         locationPath: location.pathname,
         jobId,
@@ -50,7 +76,6 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
   // Route sync: on mount only, ensure URL matches restored step.
   useEffect(() => {
     const targetPath = steps.find((s) => {
-      // Map wizard step key -> route path.
       switch (step) {
         case "welcome":
           return s.path === "/";
@@ -85,10 +110,6 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
   const stepState = useMemo(() => {
     const hasJob = Boolean(jobId);
 
-    // Strict backend-driven progression:
-    // - SCANNING => unlock Scan and (optionally) keep others locked
-    // - CONVERTING => unlock Target and Conversion, keep Finished locked
-    // - DONE => unlock all the way to Finished
     const isScanning = status === "SCANNING";
     const isConverting = status === "CONVERTING";
     const isDone = status === "DONE";
@@ -97,16 +118,23 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
     const step1Unlocked = true;
 
     const step2Unlocked = hasJob && (isScanning || isConverting || isDone || isFailed);
+
     const step3Unlocked = hasJob && (isConverting || isDone || isFailed);
 
-    // Keep step 4 locked until backend explicitly progresses to the later pipeline stage.
-    // This is intentionally conservative to avoid client prediction.
     const step4Unlocked = false;
 
     const step5Unlocked = hasJob && (isDone || isFailed);
+
     const step6Unlocked = hasJob && isDone;
 
-    return [step1Unlocked, step2Unlocked, step3Unlocked, step4Unlocked, step5Unlocked, step6Unlocked];
+    return [
+      step1Unlocked,
+      step2Unlocked,
+      step3Unlocked,
+      step4Unlocked,
+      step5Unlocked,
+      step6Unlocked,
+    ];
   }, [jobId, status]);
 
   const lockTooltip = "Complete the previous step first.";
@@ -117,7 +145,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500/20 via-cyan-500/20 to-amber-500/20 ring-1 ring-white/10">
-              <Sparkles className="h-5 w-5 text-cyan-300" />
+              <img src="/assets/images/packport-logo.png" alt="PackPort" className="h-10 w-10" />
               <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent" />
             </div>
             <div className="leading-tight">
@@ -148,8 +176,6 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
               const isDone = i < activeIndex;
 
               const unlocked = stepState[i] ?? false;
-
-              // Completed steps remain clickable. Future locked steps are non-clickable.
               const isLocked = !unlocked && !isDone;
 
               const sharedClassName = [
@@ -190,7 +216,6 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
                 </>
               );
 
-              // Locked steps: no Link, no navigation, no click events
               if (isLocked) {
                 return (
                   <div
@@ -210,7 +235,6 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
                 );
               }
 
-              // Only render Link for completed and current steps
               return (
                 <Link key={s.path} to={s.path} className={sharedClassName}>
                   {inner}
@@ -228,7 +252,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
           {/* Left section */}
           <div className="flex items-start gap-3">
             <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500/20 via-cyan-500/20 to-amber-500/20 ring-1 ring-white/10">
-              <Sparkles className="h-5 w-5 text-cyan-300" />
+              <img src="/assets/images/packport-logo.png" alt="PackPort" className="h-10 w-10" />
               <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent" />
             </div>
 
@@ -254,18 +278,84 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
                 Join our Discord community if you have questions, want to report bugs, or suggest new features.
               </div>
 
-              <a
-                href="https://discord.gg/9Ytd5vCrrY"
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => setDiscordModalOpen(true)}
                 className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400/15 px-4 py-2.5 text-sm font-medium text-cyan-200 ring-1 ring-cyan-300/30 transition hover:bg-cyan-400/20 sm:w-auto"
               >
                 Join Discord
-              </a>
+              </button>
             </div>
           </div>
         </div>
       </footer>
+
+      {alphaModalOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-red-400/20 bg-gradient-to-b from-red-500/10 via-zinc-950 to-zinc-950 p-6 shadow-[0_0_0_1px_rgba(239,68,68,0.25),0_0_34px_rgba(239,68,68,0.18)]">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl border border-red-400/25 bg-red-500/10 shadow-[0_0_24px_rgba(239,68,68,0.25)]">
+                <span className="text-xl">⚠️</span>
+              </div>
+
+              <div className="leading-tight">
+                <div className="text-xl font-extrabold text-zinc-50">
+                  ⚠️ PackPort is currently in <span className="text-red-400">Alpha</span>
+                </div>
+                <div className="mt-1 text-[13px] font-medium text-red-200/90">Early build</div>
+              </div>
+            </div>
+
+            <div className="mt-4 text-sm leading-relaxed text-zinc-300">
+              PackPort is still in early development.
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 shadow-[0_0_0_1px_rgba(239,68,68,0.12)]">
+              <div className="flex items-center gap-2 text-sm font-semibold text-red-100">
+                <span>🚀</span>
+                <span>Currently supported conversion</span>
+              </div>
+              <div className="mt-2 text-sm text-zinc-200">CurseForge (.zip) → Modrinth (.mrpack)</div>
+            </div>
+
+            <div className="mt-3 text-sm leading-relaxed text-zinc-300">
+              <span className="text-zinc-100">💡</span>{" "}
+              Some features may not work correctly yet. Feedback is welcome!
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={closeAlphaModal}
+                className="rounded-2xl bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.35)] ring-1 ring-red-300/20 transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-300/50"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {discordModalOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-lg">
+            <div className="text-lg font-semibold text-zinc-50">Community Server</div>
+            <div className="mt-2 text-sm leading-relaxed text-zinc-300">
+              Our Discord community server is still in development. Stay tuned!
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDiscordModalOpen(false)}
+                className="rounded-2xl bg-white/10 px-4 py-2 text-sm font-medium text-zinc-200 ring-1 ring-white/10 hover:bg-white/15 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

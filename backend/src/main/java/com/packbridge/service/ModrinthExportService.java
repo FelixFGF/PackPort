@@ -2,12 +2,18 @@ package com.packbridge.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.packbridge.config.FileStorageProperties;
+import com.packbridge.client.curseforge.CurseForgeClient;
+import com.packbridge.client.modrinth.ModrinthClient;
 import com.packbridge.model.ManifestInfo;
 import com.packbridge.model.ModrinthDependency;
+import com.packbridge.model.ModrinthFile;
 import com.packbridge.model.ModrinthIndex;
+import com.packbridge.service.modrinth.CurseForgeModResolutionService;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -16,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -27,11 +34,28 @@ public class ModrinthExportService {
     private static final Logger logger = LoggerFactory.getLogger(ModrinthExportService.class);
 
     private final Path fileStorageLocation;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public ModrinthExportService(FileStorageProperties fileStorageProperties) {
+    private final CurseForgeModResolutionService curseForgeModResolutionService;
+
+    public ModrinthExportService(
+            FileStorageProperties fileStorageProperties,
+            RestClient curseForgeRestClient,
+            RestClient modrinthRestClient
+    ) {
         this.fileStorageLocation = Paths.get(fileStorageProperties.getTempDir())
                 .toAbsolutePath().normalize();
+
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.findAndRegisterModules();
+        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // Build clients + resolution service inside export service constructor
+        // (keine Refactorings in unrelated components; ModrinthExportService bleibt Coordinator).
+        var curseForgeClient = new CurseForgeClient(curseForgeRestClient, this.objectMapper);
+        var modrinthClient = new ModrinthClient(modrinthRestClient, this.objectMapper);
+
+        this.curseForgeModResolutionService = new CurseForgeModResolutionService(curseForgeClient, modrinthClient);
     }
 
     public String exportMrpackPhase1(UUID uploadId, UUID jobId, String outputFileName, ManifestInfo manifestInfo) {
@@ -42,7 +66,6 @@ public class ModrinthExportService {
             throw new IllegalArgumentException("jobId is required");
         }
 
-        // TEMP DEBUG: trace manifestInfo used for export (as requested)
         System.out.println(
                 "[ModrinthExportService] exportMrpackPhase1 start (uploadId=" + uploadId + ", jobId=" + jobId + "): " +
                         "packName=" + (manifestInfo == null ? null : manifestInfo.getPackName()) + ", " +
@@ -52,15 +75,21 @@ public class ModrinthExportService {
         );
 
         // Input is the CurseForge upload that was saved by FileUploadService.
-        // For this phase we handle ZIP uploads only (uploaded as ".zip").
-        Path inputZip = fileStorageLocation.resolve(uploadId + ".zip").normalize();
+        Path jobDir = fileStorageLocation.resolve(jobId.toString()).normalize();
+
+        Path inputZip = jobDir.resolve(uploadId + ".zip").normalize();
+        Path inputMrpack = jobDir.resolve(uploadId + ".mrpack").normalize();
+
+        Path input = inputZip;
         if (!Files.exists(inputZip)) {
-            throw new RuntimeException("Input zip not found for uploadId=" + uploadId + " at " + inputZip);
+            input = inputMrpack;
         }
 
-        // ---- Minimal collision fix: store output per jobId folder ----
-        // Before: <tempDir>/<outputFileName>
-        // Now:    <tempDir>/<jobId>/<outputFileName>
+        if (!Files.exists(input)) {
+            throw new RuntimeException("Input file not found for uploadId=" + uploadId + " at " + input);
+        }
+
+        // Output stored per jobId folder
         Path outputDir = fileStorageLocation.resolve(jobId.toString()).normalize();
         Path outputMrpack = outputDir.resolve(outputFileName).normalize();
         if (outputMrpack.getParent() != null) {
@@ -71,7 +100,6 @@ public class ModrinthExportService {
             }
         }
 
-        // Always (re)create output mrpack zip
         if (Files.exists(outputMrpack)) {
             try {
                 Files.delete(outputMrpack);
@@ -80,61 +108,41 @@ public class ModrinthExportService {
             }
         }
 
-        // Build minimal, structurally valid modrinth.index.json
+        // Build modrinth.index.json
         ModrinthIndex index = new ModrinthIndex();
         index.setGame("minecraft");
         index.setFormatVersion(1);
-
-        // versionId is required in the schema; since we don't have real Modrinth versionId yet in Phase 1,
-        // use a stable synthetic one derived from jobId.
         index.setVersionId("packport-" + jobId);
 
-        // Use manifestInfo values already parsed from manifest.json
         if (manifestInfo != null) {
             index.setName(manifestInfo.getPackName());
             index.setSummary(manifestInfo.getPackVersion());
 
-            // dependencies are optional, but some clients expect the field to exist and not be empty
-            // so we provide at least minecraft + a best-effort loader key mapping.
+            // dependencies optional
             ModrinthDependency deps = new ModrinthDependency();
-
             if (manifestInfo.getMinecraftVersion() != null && !manifestInfo.getMinecraftVersion().isBlank()) {
+                // keep existing best-effort behavior
                 String minecraftKey = "minecraft";
                 String minecraftConstraint = manifestInfo.getMinecraftVersion();
-
-                // Best-effort loader mapping: keep minimal and never throw.
                 String loader = manifestInfo.getLoader();
+
                 if (loader != null) {
                     String lower = loader.toLowerCase();
                     if (lower.contains("forge")) {
-                        deps.setDependencies(java.util.Map.of(
-                                minecraftKey, minecraftConstraint,
-                                "forge", "*"
-                        ));
+                        deps.setDependencies(java.util.Map.of(minecraftKey, minecraftConstraint, "forge", "*"));
                     } else if (lower.contains("fabric")) {
-                        deps.setDependencies(java.util.Map.of(
-                                minecraftKey, minecraftConstraint,
-                                "fabric", "*"
-                        ));
+                        deps.setDependencies(java.util.Map.of(minecraftKey, minecraftConstraint, "fabric", "*"));
                     } else if (lower.contains("neoforge")) {
-                        deps.setDependencies(java.util.Map.of(
-                                minecraftKey, minecraftConstraint,
-                                "neoforge", "*"
-                        ));
+                        deps.setDependencies(java.util.Map.of(minecraftKey, minecraftConstraint, "neoforge", "*"));
                     } else {
-                        deps.setDependencies(java.util.Map.of(
-                                minecraftKey, minecraftConstraint
-                        ));
+                        deps.setDependencies(java.util.Map.of(minecraftKey, minecraftConstraint));
                     }
                 } else {
-                    deps.setDependencies(java.util.Map.of(
-                            minecraftKey, minecraftConstraint
-                    ));
+                    deps.setDependencies(java.util.Map.of(minecraftKey, minecraftConstraint));
                 }
             } else {
                 deps.setDependencies(Collections.emptyMap());
             }
-
             index.setDependencies(deps);
         } else {
             index.setName("PackPort Export");
@@ -144,21 +152,24 @@ public class ModrinthExportService {
             index.setDependencies(deps);
         }
 
-        // Phase 1: files[] empty. This is enough for "open" tests when overrides exist.
-        // Next phase will fill files[] with real mod metadata.
-        index.setFiles(Collections.emptyList());
+        // -------- REAL FIX: fill files[] --------
+        List<ModrinthFile> resolvedFiles = List.of();
+        if (manifestInfo != null && manifestInfo.getMods() != null) {
+            var out = new java.util.ArrayList<ModrinthFile>();
+            for (var m : manifestInfo.getMods()) {
+                out.addAll(curseForgeModResolutionService.resolveToModrinthFiles(m, manifestInfo));
+            }
+            resolvedFiles = out;
+        }
+        index.setFiles(resolvedFiles);
 
-        // Create mrpack zip
-        try (ZipFile zipFile = new ZipFile(inputZip.toFile());
+        try (ZipFile zipFile = new ZipFile(input.toFile());
              OutputStream fileOut = Files.newOutputStream(outputMrpack);
              ZipOutputStream zipOut = new ZipOutputStream(fileOut, StandardCharsets.UTF_8)) {
 
-            // 1) Write modrinth.index.json at root
             writeJsonEntry(zipOut, "modrinth.index.json", index);
 
-            // 2) Copy full overrides/ directory from input zip into output mrpack
-            // CurseForge zip from upload normally contains "overrides/..." entries.
-            // We copy everything under overrides/ (including nested files).
+            // Copy full overrides/ directory from input zip into output mrpack
             String overridesPrefix = "overrides/";
             var entries = zipFile.entries();
             while (entries.hasMoreElements()) {
@@ -183,7 +194,6 @@ public class ModrinthExportService {
             throw new RuntimeException("mrpack export failed: " + e.getMessage(), e);
         }
 
-        // Set job.resultPath elsewhere by caller; we also return outputMrpack.toString()
         return outputMrpack.toString();
     }
 

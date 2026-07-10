@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://packport.ddns.net/</loc>
+  </url>
+  <url>
+    <loc>https://packport.ddns.net/scan</loc>
+  </url>
+  <url>
+    <loc>https://packport.ddns.net/target</loc>
+  </url>
+  <url>
+    <loc>https://packport.ddns.net/unsupported-mods</loc>
+  </url>
+  <url>
+    <loc>https://packport.ddns.net/convert</loc>
+  </url>
+  <url>
+    <loc>https://packport.ddns.net/finished</loc>
+  </url>
+</urlset>

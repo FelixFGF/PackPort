@@ -47,6 +47,18 @@ public class ConversionService {
         job.setProgress(10);
 
         if (job.getUploadId() != null) {
+            // TEMP DEBUG: trace wizard fields before outputFileName computation
+            String packName = (job.getManifestInfo() == null) ? null : job.getManifestInfo().getPackName();
+            String exportNameBase = job.getExportNameBase();
+            String existingOutputFileName = job.getOutputFileName();
+
+            System.out.println(
+                    "[ConversionService] convert.before buildExportFileName " +
+                            "exportNameBase=" + exportNameBase + ", " +
+                            "manifest.packName=" + packName + ", " +
+                            "job.outputFileName(existing)=" + existingOutputFileName
+            );
+
             // Ensure modpackType is correctly detected (backend source of truth).
             try {
                 ModpackType detectedType = modpackDetectorService.detect(job.getUploadId());
@@ -96,6 +108,10 @@ public class ConversionService {
 
         String outputFileName = buildExportFileName(job);
         job.setOutputFileName(outputFileName);
+
+        System.out.println(
+                "[ConversionService] convert.after buildExportFileName finalOutputFileName=" + outputFileName
+        );
 
         return new ConversionResult(convertedMods, removedMods, outputFileName);
     }
@@ -147,7 +163,20 @@ public class ConversionService {
             }
         }
 
-        return originalBaseName + suffix + extension;
+        // TEMP DEBUG: trace selected base/ext and output naming inputs
+        System.out.println(
+                "[ConversionService] buildExportFileName selected originalBaseName=" + originalBaseName +
+                        ", extension=" + extension
+        );
+
+        String finalOutputFileName = originalBaseName + suffix + extension;
+
+        // TEMP DEBUG: trace final output filename
+        System.out.println(
+                "[ConversionService] buildExportFileName finalOutputFileName=" + finalOutputFileName
+        );
+
+        return finalOutputFileName;
     }
 
     /**

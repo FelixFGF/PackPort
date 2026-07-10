@@ -1,5 +1,6 @@
 package com.packbridge.controller;
 
+import com.packbridge.config.FileStorageProperties;
 import com.packbridge.dto.ApiResponse;
 import com.packbridge.dto.UploadResponse;
 import com.packbridge.model.ConversionJobStatus;
@@ -11,6 +12,11 @@ import com.packbridge.service.FileUploadService;
 import com.packbridge.service.JobService;
 import com.packbridge.service.ModrinthExportService;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -32,18 +38,23 @@ public class UploadController {
     private final CurseForgeManifestParserService curseForgeManifestParserService;
     private final ModrinthExportService modrinthExportService;
 
+    private final Path fileStorageLocation;
+
     public UploadController(
             FileUploadService fileUploadService,
             JobService jobService,
             ConversionService conversionService,
             CurseForgeManifestParserService curseForgeManifestParserService,
-            ModrinthExportService modrinthExportService
+            ModrinthExportService modrinthExportService,
+            FileStorageProperties fileStorageProperties
     ) {
         this.fileUploadService = fileUploadService;
         this.jobService = jobService;
         this.conversionService = conversionService;
         this.curseForgeManifestParserService = curseForgeManifestParserService;
         this.modrinthExportService = modrinthExportService;
+        this.fileStorageLocation = Paths.get(fileStorageProperties.getTempDir())
+                .toAbsolutePath().normalize();
     }
 
     @PostMapping
@@ -55,6 +66,9 @@ public class UploadController {
 
         UUID uploadId = uploadResponse.getUploadId();
         var job = jobService.createJob(uploadId);
+
+        // Create unified job folder and move upload artifacts into it.
+        moveUploadArtifactsIntoJobFolder(uploadId, job.getJobId());
 
         // Optional export base name override (without suffix/extension).
         job.setExportNameBase(exportNameBase);
@@ -71,10 +85,10 @@ public class UploadController {
 
             // If we force modpackType here, ConversionService did NOT parse manifestInfo.
             // Parse now so UI/export/download all use the same real metadata.
-            ManifestInfo parsed = curseForgeManifestParserService.parseManifest(uploadId);
+            ManifestInfo parsed = curseForgeManifestParserService.parseManifest(uploadId, job.getJobId());
 
             System.out.println(
-                    "[UploadController] after parseManifest (uploadId=" + uploadId + "): " +
+                    "[UploadController] after parseManifest (uploadId=" + uploadId + ", jobId=" + job.getJobId() + "): " +
                             "packName=" + (parsed == null ? null : parsed.getPackName()) + ", " +
                             "minecraftVersion=" + (parsed == null ? null : parsed.getMinecraftVersion()) + ", " +
                             "loader=" + (parsed == null ? null : parsed.getLoader()) + ", " +
@@ -96,14 +110,42 @@ public class UploadController {
 
         // Export only for CURSEFORGE uploads in this Phase 1 implementation.
         if (job.getModpackType() == ModpackType.CURSEFORGE) {
-            String outputFileName = job.getOutputFileName();
+            // IMPORTANT FIX (outputFileName provenance):
+            // Never trust job.outputFileName here; derive deterministically from wizard inputs:
+            // exportNameBase (if provided) -> manifest.packName -> jobId fallback
+            // and apply required suffix/extension.
+            String suffix = "_(PackPort.ddns.net)";
+
+            String originalBaseName;
+            if (job.getExportNameBase() != null && !job.getExportNameBase().isBlank()) {
+                originalBaseName = job.getExportNameBase().trim();
+            } else if (manifestInfo != null
+                    && manifestInfo.getPackName() != null
+                    && !manifestInfo.getPackName().isBlank()) {
+                originalBaseName = manifestInfo.getPackName();
+            } else {
+                originalBaseName = job.getJobId().toString();
+            }
+
+            // prevent double extensions if base already contains them
+            String lowerBase = originalBaseName.toLowerCase();
+            if (lowerBase.endsWith(".zip") || lowerBase.endsWith(".mrpack")) {
+                if (lowerBase.endsWith(".zip")) {
+                    originalBaseName = originalBaseName.substring(0, originalBaseName.length() - ".zip".length());
+                } else {
+                    originalBaseName = originalBaseName.substring(0, originalBaseName.length() - ".mrpack".length());
+                }
+            }
+
+            String outputFileName = originalBaseName + suffix + ".mrpack";
 
             System.out.println(
                     "[UploadController] before exportMrpackPhase1 (jobId=" + job.getJobId() + "): " +
                             "packName=" + (manifestInfo == null ? null : manifestInfo.getPackName()) + ", " +
                             "minecraftVersion=" + (manifestInfo == null ? null : manifestInfo.getMinecraftVersion()) + ", " +
                             "loader=" + (manifestInfo == null ? null : manifestInfo.getLoader()) + ", " +
-                            "mods.size=" + (manifestInfo == null || manifestInfo.getMods() == null ? null : manifestInfo.getMods().size())
+                            "mods.size=" + (manifestInfo == null || manifestInfo.getMods() == null ? null : manifestInfo.getMods().size()) + ", " +
+                            "outputFileName=" + outputFileName
             );
 
             String createdOutput = modrinthExportService.exportMrpackPhase1(
@@ -129,6 +171,30 @@ public class UploadController {
         );
 
         return ResponseEntity.ok(new ApiResponse<>(true, "File uploaded successfully", enriched));
+    }
+
+    private void moveUploadArtifactsIntoJobFolder(UUID uploadId, UUID jobId) {
+        if (uploadId == null || jobId == null) return;
+
+        Path jobDir = fileStorageLocation.resolve(jobId.toString()).normalize();
+        try {
+            Files.createDirectories(jobDir);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create job temp directory: " + jobDir, e);
+        }
+
+        moveSingle(fileStorageLocation.resolve(uploadId + ".zip").normalize(), jobDir.resolve(uploadId + ".zip").normalize());
+        moveSingle(fileStorageLocation.resolve(uploadId + ".mrpack").normalize(), jobDir.resolve(uploadId + ".mrpack").normalize());
+        moveSingle(fileStorageLocation.resolve(uploadId + ".meta").normalize(), jobDir.resolve(uploadId + ".meta").normalize());
+    }
+
+    private void moveSingle(Path source, Path target) {
+        try {
+            if (!Files.exists(source)) return;
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not move temp artifact from " + source + " to " + target, e);
+        }
     }
 
     @DeleteMapping("/{uploadId}")

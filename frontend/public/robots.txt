@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://packport.ddns.net/sitemap.xml

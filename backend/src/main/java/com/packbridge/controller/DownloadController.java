@@ -30,9 +30,8 @@ public class DownloadController {
 
     public DownloadController(JobService jobService, FileStorageProperties fileStorageProperties) {
         this.jobService = jobService;
-        this.fileStorageLocation = Paths.get(fileStorageProperties.getTempDir())
-                .toAbsolutePath()
-                .normalize();
+        this.fileStorageLocation =
+                Paths.get(fileStorageProperties.getTempDir()).toAbsolutePath().normalize();
     }
 
     @GetMapping("/download/{jobId}")
@@ -62,7 +61,12 @@ public class DownloadController {
         boolean usedFallback = false;
 
         if (outputFileName != null && !outputFileName.isBlank()) {
-            Path candidate = fileStorageLocation.resolve(outputFileName).normalize();
+            // EXPORT outputs are written into: <tempDir>/<jobId>/<outputFileName>
+            Path candidate = fileStorageLocation
+                    .resolve(job.getJobId().toString())
+                    .resolve(outputFileName)
+                    .normalize();
+
             System.out.println("resolved file = " + candidate.toAbsolutePath());
             System.out.println("exists = " + Files.exists(candidate));
 
@@ -82,7 +86,8 @@ public class DownloadController {
 
             if (uploadIdStr != null) {
                 Path mrpackCandidate = fileStorageLocation.resolve(uploadIdStr + ".mrpack").normalize();
-                System.out.println("resolved file (fallback mrpack) = " + mrpackCandidate.toAbsolutePath());
+                System.out.println(
+                        "resolved file (fallback mrpack) = " + mrpackCandidate.toAbsolutePath());
                 System.out.println("exists (fallback mrpack) = " + Files.exists(mrpackCandidate));
 
                 if (Files.exists(mrpackCandidate) && Files.isRegularFile(mrpackCandidate)) {
@@ -105,8 +110,7 @@ public class DownloadController {
             logger.warn(
                     "DOWNLOAD debug: outputFile resolved to null. outputFileName='{}' usedFallback={}",
                     outputFileName,
-                    usedFallback
-            );
+                    usedFallback);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Output file not found");
         }
 
@@ -121,26 +125,63 @@ public class DownloadController {
         try {
             InputStream inputStream = Files.newInputStream(outputFile);
 
+            // Cleanup erst nach erfolgreichem Download: wir löschen beim Schließen des Streams.
+            // Job-Ordner wird von ModrinthExportService als <tempDir>/<jobId>/ genutzt.
+            Path jobTempDir = fileStorageLocation.resolve(job.getJobId().toString()).normalize();
+
+            InputStream cleanupOnCloseStream =
+                    new java.io.FilterInputStream(inputStream) {
+                        @Override
+                        public void close() throws IOException {
+                            try {
+                                super.close();
+                            } finally {
+                                // Rekursiv löschen: temp_uploads/<jobId>/
+                                if (Files.exists(jobTempDir)) {
+                                    try {
+                                        Files.walk(jobTempDir)
+                                                .sorted(java.util.Comparator.reverseOrder())
+                                                .forEach(
+                                                        p -> {
+                                                            try {
+                                                                Files.deleteIfExists(p);
+                                                            } catch (IOException ex) {
+                                                                logger.warn(
+                                                                        "Could not delete temp path {}",
+                                                                        p,
+                                                                        ex);
+                                                            }
+                                                        });
+                                    } catch (Exception ex) {
+                                        logger.warn(
+                                                "Cleanup after download failed for jobTempDir={}",
+                                                jobTempDir,
+                                                ex);
+                                    }
+                                }
+                            }
+                        }
+                    };
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             headers.setContentDispositionFormData("attachment", downloadFileName);
 
             return new ResponseEntity<>(
-                    new org.springframework.core.io.InputStreamResource(inputStream),
+                    new org.springframework.core.io.InputStreamResource(cleanupOnCloseStream),
                     headers,
-                    HttpStatus.OK
-            );
+                    HttpStatus.OK);
         } catch (IOException e) {
             logger.error("DOWNLOAD debug: failed streaming outputFile={}", outputFile, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to stream output file");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to stream output file");
         }
     }
 
     private String buildDownloadFileName(ConversionJob job) {
         System.out.println(
                 "[DownloadController] buildDownloadFileName: packName(before read)="
-                        + (job.getManifestInfo() == null ? null : job.getManifestInfo().getPackName())
-        );
+                        + (job.getManifestInfo() == null ? null : job.getManifestInfo().getPackName()));
 
         String packName = null;
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Globe, GitBranch, Package } from "lucide-react";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { usePackBridgeFlow } from "../hooks/usePackBridgeFlow";
+import { useJobStatus } from "../hooks/useJobStatus";
 import type { Platform } from "../types/packbridge";
 
 function PlatformCard({
@@ -65,30 +66,31 @@ function PlatformCard({
 
 export function TargetPlatformPage() {
   const navigate = useNavigate();
-  const {
-    profile,
-    targetPlatform,
-    setTargetPlatform,
-    setStep,
-  } = usePackBridgeFlow();
+  const { profile, targetPlatform, setTargetPlatform, setStep, jobId } = usePackBridgeFlow();
 
-  // Recognized source platform from backend scan result (frontend state).
-  const sourcePlatform = profile?.sourcePlatform;
+  const { modpackType } = useJobStatus(jobId);
 
   const allChoices = useMemo(() => {
     return ["CURSEFORGE", "MODRINTH"] as Platform[];
   }, []);
 
+  // Problem 1: SOURCE must reflect the detected upload source.
+  // Use backend scan result (job polling). If backend didn't provide it, fall back to existing profile behavior.
+  const sourcePlatform: Platform | undefined = useMemo(() => {
+    if (modpackType === "CURSEFORGE") return "CURSEFORGE";
+    if (modpackType === "MODRINTH") return "MODRINTH";
+    return profile?.sourcePlatform;
+  }, [modpackType, profile?.sourcePlatform]);
+
   const target: Platform = useMemo(() => {
-    // If source is known, force target to the opposite platform and never allow the same.
     if (sourcePlatform === "CURSEFORGE") return "MODRINTH";
     if (sourcePlatform === "MODRINTH") return "CURSEFORGE";
 
-    // Fallback: keep current selection if it exists, otherwise default to Modrinth.
     if (targetPlatform) return targetPlatform;
     return "MODRINTH";
   }, [sourcePlatform, targetPlatform]);
 
+  // Problem 2: lock the forbidden target card and ensure it is visible as disabled.
   const forbiddenTarget: Platform | undefined = useMemo(() => {
     if (sourcePlatform === "CURSEFORGE") return "CURSEFORGE";
     if (sourcePlatform === "MODRINTH") return "MODRINTH";
@@ -119,14 +121,10 @@ export function TargetPlatformPage() {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:text-right">
-            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Source
-            </div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Source</div>
             <div className="mt-1 text-sm font-semibold text-zinc-50">{sourceLabel}</div>
 
-            <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Target
-            </div>
+            <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">Target</div>
             <div className="mt-1 text-sm font-semibold text-zinc-50">{targetLabel}</div>
           </div>
         </div>
@@ -145,7 +143,6 @@ export function TargetPlatformPage() {
                 selected={selected}
                 disabled={disabled}
                 onSelect={(v) => {
-                  // Prevent selecting the forbidden platform (invalid: same as source).
                   if (disabled) return;
                   setTargetPlatform(v);
                 }}
@@ -156,9 +153,7 @@ export function TargetPlatformPage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-zinc-300">
-            Next step: we’ll detect mods that exist on only one platform.
-          </div>
+          <div className="text-sm text-zinc-300">Next step: we’ll detect mods that exist on only one platform.</div>
 
           <PrimaryButton
             onClick={() => {

@@ -11,3 +11,6 @@ build/
 # Frontend
 node_modules/
 dist/
+
+# Temporary icon generation script
+frontend/scripts/
