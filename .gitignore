@@ -14,3 +14,7 @@ dist/
 
 # Temporary icon generation script
 frontend/scripts/
+
+
+
+tmp_file_check.txt
