@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import React, { useCallback, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { PackBridgeFlowProvider } from "./hooks/usePackBridgeFlow";
 import { StepLayout } from "./layouts/StepLayout";
@@ -14,6 +14,7 @@ import { StartupLoader } from "./components/StartupLoader";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import { AdminLayout } from "./layouts/AdminLayout";
+import { WizardGuard } from "./guards/WizardGuard";
 
 const HOME = {
   title: "PackPort.ddns.net | Home",
@@ -58,15 +59,13 @@ const FINISHED = {
 };
 
 function AdminDashboardGuard({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
-
   // Temporary client-side guard:
   // until backend authentication is implemented, always redirect unauthenticated users to "/".
   // Later this will be replaced with backend session validation.
   const hasValidAdminSession = false;
 
   if (!hasValidAdminSession) {
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -97,52 +96,65 @@ export default function App() {
                 </>
               }
             />
+
+            {/* Wizard routes only (scoped protection) */}
             <Route
               path="/scan"
               element={
-                <>
-                  <SEO config={SCAN} />
-                  <ScanResultPage />
-                </>
+                <WizardGuard>
+                  <>
+                    <SEO config={SCAN} />
+                    <ScanResultPage />
+                  </>
+                </WizardGuard>
               }
             />
             <Route
               path="/target"
               element={
-                <>
-                  <SEO config={OUTPUT} />
-                  <TargetPlatformPage />
-                </>
+                <WizardGuard>
+                  <>
+                    <SEO config={OUTPUT} />
+                    <TargetPlatformPage />
+                  </>
+                </WizardGuard>
               }
             />
             <Route
               path="/unsupported-mods"
               element={
-                <>
-                  <SEO config={PROBLEMS} />
-                  <UnsupportedModsPage />
-                </>
+                <WizardGuard>
+                  <>
+                    <SEO config={PROBLEMS} />
+                    <UnsupportedModsPage />
+                  </>
+                </WizardGuard>
               }
             />
             <Route
               path="/convert"
               element={
-                <>
-                  <SEO config={CONVERT} />
-                  <ConversionProgressPage />
-                </>
+                <WizardGuard>
+                  <>
+                    <SEO config={CONVERT} />
+                    <ConversionProgressPage />
+                  </>
+                </WizardGuard>
               }
             />
             <Route
               path="/finished"
               element={
-                <>
-                  <SEO config={FINISHED} />
-                  <FinishedPage />
-                </>
+                <WizardGuard>
+                  <>
+                    <SEO config={FINISHED} />
+                    <FinishedPage />
+                  </>
+                </WizardGuard>
               }
             />
 
+            {/* Non-wizard routes */}
             <Route
               path="/admin"
               element={

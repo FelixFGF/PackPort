@@ -5,7 +5,6 @@ import com.packbridge.dto.ConversionRequestDto;
 import com.packbridge.dto.ConversionResponseDto;
 import com.packbridge.dto.UnsupportedModDto;
 import com.packbridge.model.ConversionJob;
-import com.packbridge.model.ConversionJobStatus;
 import com.packbridge.model.ConversionResult;
 import com.packbridge.model.ManifestInfo;
 import com.packbridge.model.ModpackType;
@@ -35,16 +34,17 @@ public class ConversionService {
 
     /**
      * Pipeline conversion used by the wizard job flow.
-     * Drives CREATED -> SCANNING -> DONE so GET /api/job/{jobId} returns filled fields.
+     *
+     * IMPORTANT:
+     * - ConversionJobRunnerService is responsible for persisting status/progress per phase.
+     * - Therefore this method must NOT overwrite job.status/job.progress (no DONE/100, no SCANNING/10 etc.).
+     *
+     * It should only fill the job fields required by subsequent export/download steps.
      */
     public ConversionResult convert(ConversionJob job) {
         if (job == null) {
             return new ConversionResult(List.of(), List.of(), null);
         }
-
-        // CREATED -> SCANNING
-        job.setStatus(ConversionJobStatus.SCANNING);
-        job.setProgress(10);
 
         if (job.getUploadId() != null) {
             // TEMP DEBUG: trace wizard fields before outputFileName computation
@@ -82,11 +82,7 @@ public class ConversionService {
             }
         }
 
-        // SCANNING -> DONE
-        job.setProgress(100);
-        job.setStatus(ConversionJobStatus.DONE);
-
-        // In-memory simulation: convert detected mods into converted/removed.
+        // Simulate conversion result using currently populated detected/unsupported mods.
         List<String> detectedMods = job.getDetectedMods();
 
         Set<String> unsupported =

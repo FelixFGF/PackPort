@@ -61,17 +61,9 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
     setSessionItem(ALPHA_SESSION_KEY, "1");
   };
 
-  // Guard: if user opens any step route without job context, redirect to Welcome.
-  useEffect(() => {
-    if (!jobId && location.pathname !== "/" && status !== "DONE" && status !== "FAILED") {
-      console.log("[StepLayout] guard redirect to /", {
-        locationPath: location.pathname,
-        jobId,
-        status,
-      });
-      navigate("/", { replace: true });
-    }
-  }, [jobId, location.pathname, navigate, status]);
+  // NOTE: Removed the previous global guard that redirected when job context
+  // was missing. Route protection must be scoped only to the conversion wizard
+  // routes via WizardGuard (see frontend/src/guards/WizardGuard.tsx).
 
   // Route sync: on mount only, ensure URL matches restored step.
   useEffect(() => {
@@ -307,20 +299,25 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
 
               <div className="leading-tight">
                 <div className="text-xl font-extrabold text-zinc-50">
-                  ⚠️ PackPort is currently in <span className="text-red-400">Alpha</span>
+                  ⚠️ PackPort is currently in{" "}
+                  <span className="text-red-400">Alpha</span>
                 </div>
                 <div className="mt-1 text-[13px] font-medium text-red-200/90">Early build</div>
               </div>
             </div>
 
-            <div className="mt-4 text-sm leading-relaxed text-zinc-300">PackPort is still in early development.</div>
+            <div className="mt-4 text-sm leading-relaxed text-zinc-300">
+              PackPort is still in early development.
+            </div>
 
             <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 shadow-[0_0_0_1px_rgba(239,68,68,0.12)]">
               <div className="flex items-center gap-2 text-sm font-semibold text-red-100">
                 <span>🚀</span>
                 <span>Currently supported conversion</span>
               </div>
-              <div className="mt-2 text-sm text-zinc-200">CurseForge (.zip) → Modrinth (.mrpack)</div>
+              <div className="mt-2 text-sm text-zinc-200">
+                CurseForge (.zip) → Modrinth (.mrpack)
+              </div>
             </div>
 
             <div className="mt-3 text-sm leading-relaxed text-zinc-300">

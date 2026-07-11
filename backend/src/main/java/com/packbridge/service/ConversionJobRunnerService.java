@@ -40,33 +40,55 @@ public class ConversionJobRunnerService {
         try {
             if (job == null) return;
 
-            // Ensure we start from a predictable state; CREATED should already be set by controller.
+            // Predictable start state.
             job.setStatus(ConversionJobStatus.CREATED);
+            job.setProgress(0);
             jobService.saveJob(job);
 
             // Background pipeline (previously in UploadController/ConversionService/modrinth export).
             if (job.getUploadId() != null) {
-                // If type wasn't set earlier, ensure consistent behavior.
+
+                // Phase 1: detect/parse basic inputs
                 if (job.getModpackType() == ModpackType.UNKNOWN) {
+                    job.setStatus(ConversionJobStatus.SCANNING);
+                    job.setProgress(20);
+                    jobService.saveJob(job);
+
                     // UploadController previously forced CURSEFORGE and then parsed manifest.
                     job.setModpackType(ModpackType.CURSEFORGE);
                     ManifestInfo parsed = curseForgeManifestParserService.parseManifest(job.getUploadId(), job.getJobId());
                     job.setManifestInfo(parsed);
+
+                    job.setStatus(ConversionJobStatus.ANALYZING);
+                    job.setProgress(50);
+                    jobService.saveJob(job);
+                } else {
+                    job.setStatus(ConversionJobStatus.SCANNING);
+                    job.setProgress(20);
+                    jobService.saveJob(job);
+
+                    job.setStatus(ConversionJobStatus.ANALYZING);
+                    job.setProgress(50);
+                    jobService.saveJob(job);
                 }
 
-                // conversionService.convert(job) sets SCANNING -> DONE and fills fields.
-                // It also computes outputFileName via buildExportFileName.
+                // Phase 2: convert/compute report + output naming
+                job.setStatus(ConversionJobStatus.CONVERTING);
+                job.setProgress(80);
                 jobService.saveJob(job);
+
                 conversionService.convert(job);
             }
 
-            // Export only for CURSEFORGE uploads in the existing Phase 1 implementation.
+            // Phase 3: export mrpack (only for CURSEFORGE uploads in existing Phase 1 implementation)
             if (job.getModpackType() == ModpackType.CURSEFORGE) {
-                ManifestInfo manifestInfo = job.getManifestInfo();
+                job.setStatus(ConversionJobStatus.CONVERTING);
+                job.setProgress(90);
+                jobService.saveJob(job);
 
+                ManifestInfo manifestInfo = job.getManifestInfo();
                 String outputFileName = job.getOutputFileName();
-                // outputFileName is expected to include suffix + ".mrpack"
-                // as computed by ConversionService.
+
                 String createdOutput = modrinthExportService.exportMrpackPhase1(
                         job.getUploadId(),
                         job.getJobId(),
@@ -86,12 +108,9 @@ public class ConversionJobRunnerService {
             if (job != null) {
                 job.setStatus(ConversionJobStatus.FAILED);
                 job.setProgress(100);
-                // Job currently has no "error message" field; warnings can be used.
-                // Avoid breaking DTO/polling contract: warnings is already returned by JobController.
                 job.getWarnings().add("Conversion failed: " + e.getMessage());
                 jobService.saveJob(job);
             }
-            // Keep stack trace in logs for debugging.
             e.printStackTrace();
         }
     }
