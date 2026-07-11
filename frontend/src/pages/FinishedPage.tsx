@@ -5,7 +5,8 @@ import { usePackBridgeFlow } from "../hooks/usePackBridgeFlow";
 import { useJobStatus } from "../hooks/useJobStatus";
 import { PrimaryButton } from "../components/PrimaryButton";
 
-const API_BASE = "http://localhost:8081";
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? "https://packport-backend.onrender.com";
 
 function toApiUrl(path: string) {
   return `${API_BASE}${path}`;
@@ -249,9 +250,11 @@ export function FinishedPage() {
             <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
               Download
             </div>
+
             <div className="mt-2 text-sm font-semibold text-zinc-50">
               {fileName}
             </div>
+
             <div className="mt-2 text-xs text-zinc-300">
               {canDownload
                 ? "Ready"
