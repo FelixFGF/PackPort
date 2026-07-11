@@ -13,6 +13,7 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
 
   const startTimeRef = useRef<number>(Date.now());
   const successRef = useRef(false);
+
   const progressRafRef = useRef<number | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -25,14 +26,14 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
   useEffect(() => {
     let mounted = true;
 
+    // purely visual progress animation (no blocking)
     const targetMax = 90;
-    const minDurationMs = 40_000; // 0 -> ~90% feeling
+    const minDurationMs = 40_000;
+
     const tick = () => {
       const elapsed = Date.now() - startTimeRef.current;
-
       if (!mounted || successRef.current) return;
 
-      // Ease to 90% over minDurationMs, then keep drifting to ~90.
       const t = Math.min(1, elapsed / minDurationMs);
       const eased = 1 - Math.pow(1 - t, 3);
       const next = Math.max(0, Math.floor(eased * targetMax));
@@ -43,121 +44,100 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
 
     progressRafRef.current = window.requestAnimationFrame(tick);
 
-    const poll = async () => {
+    const pollOnce = async () => {
       if (!mounted || successRef.current) return;
 
-      // after 5 minutes switch to longer mode, but keep polling
       const elapsed = Date.now() - startTimeRef.current;
-      if (elapsed >= 5 * 60_000 && phase !== "long") {
-        setPhase("long");
-      }
+      if (elapsed >= 5 * 60_000 && phase !== "long") setPhase("long");
 
-      // Abort previous request if any
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       try {
-        const res = await fetch(backendUrl, {
+        console.log("[StartupLoader] request URL:", backendUrl);
+
+        const response = await fetch(backendUrl, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
         });
 
-        if (res.status === 200) {
-          const text = (await res.text()).trim();
-          if (text === "OK") {
-            successRef.current = true;
+        console.log("[StartupLoader] HTTP status:", response.status);
 
-            // instantly finish progress, then fade out
-            setProgress(100);
+        const text = await response.text();
+        console.log("[StartupLoader] response body (raw):", text);
 
-            setPhase("connected");
-            setIsFadingOut(true);
+        const ok =
+          response.status === 200 && text.trim() === "OK";
 
-            // Give the fade a moment so the user sees it.
-            window.setTimeout(() => {
-              if (!mounted) return;
-              onConnected();
-            }, 450);
+        console.log("[StartupLoader] ok condition:", ok);
 
-            return;
-          }
+        if (ok) {
+          successRef.current = true;
+
+          // Must instantly complete progress once confirmed online.
+          setProgress(100);
+          setPhase("connected");
+          setIsFadingOut(true);
+
+          console.log("[StartupLoader] loader ready -> switching to app");
+
+          // Fade-out trigger + then switch app. No artificial long wait.
+          window.setTimeout(() => {
+            if (!mounted) return;
+            onConnected();
+          }, 50);
         }
-      } catch {
-        // ignore and keep polling
+      } catch (err) {
+        console.error("[StartupLoader] fetch failed (network/CORS?):", err);
       }
     };
 
-    // initial poll immediately, then every 2 seconds
-    poll();
-    pollIntervalRef.current = window.setInterval(poll, 2000);
+    // immediately poll; then adapt interval (2s until 5 min, then 5s)
+    void pollOnce();
+
+    const interval = window.setInterval(() => {
+      if (!mounted || successRef.current) return;
+
+      const elapsed = Date.now() - startTimeRef.current;
+      const intervalMs = elapsed >= 5 * 60_000 ? 5000 : 2000;
+
+      // We can't change setInterval duration dynamically without restarting;
+      // simplest: restart interval only when crossing 5 minutes.
+      // For correctness, just keep 2s polling here; fetch will be very cheap.
+      // Requirement allows continuing polling every 5 seconds after 5 minutes,
+      // but not to freeze. We'll handle by restarting once at 5 minutes.
+      void intervalMs; // no-op to avoid lint noise
+
+      void pollOnce();
+    }, 2000);
+
+    pollIntervalRef.current = interval;
+
+    const switchTimer = window.setInterval(() => {
+      if (!mounted || successRef.current) return;
+
+      const elapsed = Date.now() - startTimeRef.current;
+      if (elapsed >= 5 * 60_000 && phase !== "long") {
+        setPhase("long");
+        if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+
+        pollIntervalRef.current = window.setInterval(() => {
+          void pollOnce();
+        }, 5000);
+      }
+    }, 1000);
 
     return () => {
       mounted = false;
       if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+      window.clearInterval(switchTimer);
       if (progressRafRef.current)
         window.cancelAnimationFrame(progressRafRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backendUrl, onConnected]);
-
-  useEffect(() => {
-    // Switch interval after 5 minutes requirement: every 5 seconds
-    // without refetch logic changes. We implement by adjusting interval based on elapsed time.
-    // This effect only manages interval changes.
-    const id = window.setInterval(() => {
-      if (successRef.current) return;
-
-      const elapsed = Date.now() - startTimeRef.current;
-      const shouldBeLongInterval = elapsed >= 5 * 60_000;
-      const currentInterval = pollIntervalRef.current;
-
-      // We can't reliably read current interval duration; instead we just toggle when phase changes.
-      if (shouldBeLongInterval && phase === "long") {
-        if (currentInterval) window.clearInterval(currentInterval);
-        pollIntervalRef.current = window.setInterval(() => {
-          // use the same fetch logic by triggering phase-based poll via a state update cycle:
-          // easiest: call onConnected won't happen; so just keep polling by invoking a separate fetch.
-          // To avoid duplication, we rely on the existing poll loop interval already calling every 2s.
-          // However requirement says change to 5s. We'll replace interval with 5s calls by calling fetch directly here.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          (async () => {
-            if (successRef.current) return;
-
-            if (abortRef.current) abortRef.current.abort();
-            const controller = new AbortController();
-            abortRef.current = controller;
-
-            try {
-              const res = await fetch(backendUrl, {
-                method: "GET",
-                cache: "no-store",
-                signal: controller.signal,
-              });
-
-              if (res.status === 200) {
-                const text = (await res.text()).trim();
-                if (text === "OK") {
-                  successRef.current = true;
-                  setProgress(100);
-                  setPhase("connected");
-                  setIsFadingOut(true);
-                  window.setTimeout(() => {
-                    onConnected();
-                  }, 450);
-                }
-              }
-            } catch {
-              // ignore
-            }
-          })();
-        }, 5000);
-      }
-    }, 1000);
-
-    return () => window.clearInterval(id);
   }, [backendUrl, onConnected, phase]);
 
   return (
