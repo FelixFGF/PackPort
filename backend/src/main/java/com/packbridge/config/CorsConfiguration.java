@@ -13,7 +13,7 @@ public class CorsConfiguration implements WebMvcConfigurer {
                 .allowedOrigins(
                         "http://localhost:5173",
                         "http://localhost:3000",
-                        "https://comfy-cannoli-8d4d2a.netlify.app"
+                        "https://packport.netlify.app"
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
