@@ -17,7 +17,7 @@ public class CorsConfiguration implements WebMvcConfigurer {
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(false);
+                .allowCredentials(true);
 
         // TODO: Replace production origins (e.g. https://<your-production-frontend-domain>) after deployment.
     }

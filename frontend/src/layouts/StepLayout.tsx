@@ -147,19 +147,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10"
-            >
-              <GitFork className="h-4 w-4 text-fuchsia-300" />
-              Wizard
-            </Link>
-            <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm text-zinc-400 ring-1 ring-white/10">
-              <LoaderCircle className="h-4 w-4 animate-spin text-cyan-300" />
-              Mock mode
-            </span>
-          </div>
+          <div className="hidden items-center gap-3 md:flex"></div>
         </div>
 
         <div className="mx-auto max-w-6xl px-4 pb-4">
@@ -336,8 +324,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="mt-3 text-sm leading-relaxed text-zinc-300">
-              <span className="text-zinc-100">💡</span>{" "}
-              Some features may not work correctly yet. Feedback is welcome!
+              <span className="text-zinc-100">💡</span> Some features may not work correctly yet. Feedback is welcome!
             </div>
 
             <div className="mt-5 flex justify-end">

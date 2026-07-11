@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
+Disallow: /admin
+Disallow: /admin/dashboard
+
 Sitemap: https://packport.ddns.net/sitemap.xml

@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { PackBridgeFlowProvider } from "./hooks/usePackBridgeFlow";
 import { StepLayout } from "./layouts/StepLayout";
@@ -11,6 +11,8 @@ import { UnsupportedModsPage } from "./pages/UnsupportedModsPage";
 import { ConversionProgressPage } from "./pages/ConversionProgressPage";
 import { FinishedPage } from "./pages/FinishedPage";
 import { StartupLoader } from "./components/StartupLoader";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 const HOME = {
   title: "PackPort.ddns.net | Home",
@@ -53,6 +55,21 @@ const FINISHED = {
     "Your Modpack has been successfully converted and is ready for download.",
   canonicalPath: "/finished",
 };
+
+function AdminDashboardGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  // Temporary client-side guard:
+  // until backend authentication is implemented, always redirect unauthenticated users to "/".
+  // Later this will be replaced with backend session validation.
+  const hasValidAdminSession = false;
+
+  if (!hasValidAdminSession) {
+    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -122,6 +139,15 @@ export default function App() {
                   <SEO config={FINISHED} />
                   <FinishedPage />
                 </>
+              }
+            />
+            <Route path="/admin" element={<AdminLoginPage />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <AdminDashboardGuard>
+                  <AdminDashboardPage />
+                </AdminDashboardGuard>
               }
             />
             <Route path="*" element={<Navigate to="/" replace />} />
