@@ -11,13 +11,13 @@ export type SeoPageConfig = {
   };
 };
 
-const SITE_URL = "https://packport.ddns.net";
+const SITE_URL = "https://packport.netlify.app";
 const SITE_NAME = "PackPort";
 
 const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/images/og-image.png`;
 
 const KEYWORDS =
-  "PackPort, Minecraft, Minecraft Modpack, CurseForge, Modrinth, Mod Converter, Modpack Converter, Forge, Fabric, NeoForge, Quilt, Minecraft Mods, mrpack, CurseForge to Modrinth, Minecraft Tools, Modrinth to CurseForge";
+  "PackPort, PackPort.netlify.app, Minecraft, Minecraft Modpack, CurseForge, Modrinth, Mod Converter, Modpack Converter, mrpack, CurseForge to Modrinth, Minecraft Tools, Modrinth Export, Modpack Export, Forge, Fabric, NeoForge, Quilt";
 
 function normalizeCanonicalPath(path: string) {
   if (!path) return "/";
