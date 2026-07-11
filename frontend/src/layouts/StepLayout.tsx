@@ -66,7 +66,23 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
   // routes via WizardGuard (see frontend/src/guards/WizardGuard.tsx).
 
   // Route sync: on mount only, ensure URL matches restored step.
+  // IMPORTANT:
+  // This MUST ONLY run for the conversion wizard routes.
+  // Non-wizard routes (e.g. /admin, legal/help pages, future pages) must bypass completely.
   useEffect(() => {
+    const wizardRoutes = new Set([
+      "/",
+      "/scan",
+      "/target",
+      "/unsupported-mods",
+      "/convert",
+      "/finished",
+    ]);
+
+    if (!wizardRoutes.has(location.pathname)) {
+      return;
+    }
+
     const targetPath = steps.find((s) => {
       switch (step) {
         case "welcome":
