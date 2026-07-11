@@ -21,7 +21,9 @@ type UploadResponse = {
   jobId?: string;
 };
 
-const API_BASE = "";
+// Use backend base URL from env (Netlify/Render friendly).
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? "https://packport-backend.onrender.com";
 
 function toApiUrl(path: string) {
   return `${API_BASE}${path}`;
@@ -41,7 +43,6 @@ function cleanupUpload(uploadId: string | undefined) {
       // fall through
     }
   }
-
   fetch(url, { method: "DELETE", keepalive: true }).catch(() => {});
 }
 
