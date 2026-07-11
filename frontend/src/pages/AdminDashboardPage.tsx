@@ -27,15 +27,23 @@ export default function AdminDashboardPage() {
           },
         });
 
+        // Only redirect when backend explicitly reports authenticated=false.
+        // On network/HTTP errors, keep the dashboard visible (no bouncing to "/").
         if (!res.ok) {
-          setIsAuthenticated(false);
+          setIsAuthenticated(null);
           return;
         }
 
         const data: AdminSessionResponse = await res.json();
-        setIsAuthenticated(Boolean(data.authenticated));
+
+        if (data && typeof data.authenticated === "boolean") {
+          setIsAuthenticated(data.authenticated);
+        } else {
+          setIsAuthenticated(null);
+        }
       } catch {
-        setIsAuthenticated(false);
+        // On fetch failure, do NOT redirect.
+        setIsAuthenticated(null);
       }
     };
 
@@ -62,7 +70,11 @@ export default function AdminDashboardPage() {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="mb-4 flex items-center gap-3">
           <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500/20 via-cyan-500/20 to-amber-500/20 ring-1 ring-white/10">
-            <img src="/assets/images/packport-dev.png" alt="PackPort DEV" className="h-10 w-10" />
+            <img
+              src="/assets/images/packport-dev.png"
+              alt="PackPort DEV"
+              className="h-10 w-10"
+            />
             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent" />
           </div>
 
