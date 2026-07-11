@@ -24,6 +24,8 @@ public class AdminAuthenticationProvider implements AuthenticationProvider {
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+        System.out.println("ENTERED AuthenticationProvider");
+
         if (!(authentication instanceof AdminAuthenticationToken token)) {
             return null;
         }
@@ -35,9 +37,6 @@ public class AdminAuthenticationProvider implements AuthenticationProvider {
             throw new BadCredentialsException("Invalid username or password.");
         }
 
-        // We don’t rely on credentials stored in the token (token.getCredentials() is empty),
-        // so we pass the submitted password via credentials string in the token.
-        // In our AdminLoginFilter we will store the submitted password into token.credentials.
         String submittedPassword = (String) token.getCredentials();
         if (submittedPassword == null || !passwordEncoder.matches(submittedPassword, adminAuthProperties.getPasswordHash())) {
             throw new BadCredentialsException("Invalid username or password.");

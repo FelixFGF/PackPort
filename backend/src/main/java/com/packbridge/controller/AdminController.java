@@ -33,6 +33,7 @@ public class AdminController {
             @RequestBody Map<String, Object> body,
             HttpServletRequest request
     ) {
+        System.out.println("ENTERED AdminController.login");
         String username = body.get("username") != null ? body.get("username").toString() : null;
         String password = body.get("password") != null ? body.get("password").toString() : null;
 
