@@ -7,10 +7,9 @@ import com.packbridge.model.ConversionJobStatus;
 import com.packbridge.model.ManifestInfo;
 import com.packbridge.model.ModpackType;
 import com.packbridge.service.CurseForgeManifestParserService;
-import com.packbridge.service.ConversionService;
+import com.packbridge.service.ConversionJobRunnerService;
 import com.packbridge.service.FileUploadService;
 import com.packbridge.service.JobService;
-import com.packbridge.service.ModrinthExportService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,25 +33,23 @@ public class UploadController {
 
     private final FileUploadService fileUploadService;
     private final JobService jobService;
-    private final ConversionService conversionService;
     private final CurseForgeManifestParserService curseForgeManifestParserService;
-    private final ModrinthExportService modrinthExportService;
+    private final ConversionJobRunnerService conversionJobRunnerService;
 
     private final Path fileStorageLocation;
 
     public UploadController(
             FileUploadService fileUploadService,
             JobService jobService,
-            ConversionService conversionService,
             CurseForgeManifestParserService curseForgeManifestParserService,
-            ModrinthExportService modrinthExportService,
+            ConversionJobRunnerService conversionJobRunnerService,
             FileStorageProperties fileStorageProperties
     ) {
         this.fileUploadService = fileUploadService;
         this.jobService = jobService;
-        this.conversionService = conversionService;
         this.curseForgeManifestParserService = curseForgeManifestParserService;
-        this.modrinthExportService = modrinthExportService;
+        this.conversionJobRunnerService = conversionJobRunnerService;
+
         this.fileStorageLocation = Paths.get(fileStorageProperties.getTempDir())
                 .toAbsolutePath().normalize();
     }
@@ -73,94 +70,27 @@ public class UploadController {
         // Optional export base name override (without suffix/extension).
         job.setExportNameBase(exportNameBase);
 
-        // Source of truth for the wizard fields stays in ConversionService.
-        // However, we trigger Modrinth Phase 1 export immediately after conversion,
-        // so DownloadController can serve the generated .mrpack.
-        conversionService.convert(job);
-
-        // Ensure correct type and manifestInfo are present before export.
-        // ConversionService already fills these for CURSEFORGE uploads.
-        if (job.getModpackType() == ModpackType.UNKNOWN) {
-            job.setModpackType(ModpackType.CURSEFORGE);
-
-            // If we force modpackType here, ConversionService did NOT parse manifestInfo.
-            // Parse now so UI/export/download all use the same real metadata.
-            ManifestInfo parsed = curseForgeManifestParserService.parseManifest(uploadId, job.getJobId());
-
-            System.out.println(
-                    "[UploadController] after parseManifest (uploadId=" + uploadId + ", jobId=" + job.getJobId() + "): " +
-                            "packName=" + (parsed == null ? null : parsed.getPackName()) + ", " +
-                            "minecraftVersion=" + (parsed == null ? null : parsed.getMinecraftVersion()) + ", " +
-                            "loader=" + (parsed == null ? null : parsed.getLoader()) + ", " +
-                            "mods.size=" + (parsed == null || parsed.getMods() == null ? null : parsed.getMods().size())
-            );
-
-            job.setManifestInfo(parsed);
-
-            System.out.println(
-                    "[UploadController] after job.setManifestInfo (jobId=" + job.getJobId() + "): " +
-                            "packName=" + (job.getManifestInfo() == null ? null : job.getManifestInfo().getPackName()) + ", " +
-                            "minecraftVersion=" + (job.getManifestInfo() == null ? null : job.getManifestInfo().getMinecraftVersion()) + ", " +
-                            "loader=" + (job.getManifestInfo() == null ? null : job.getManifestInfo().getLoader()) + ", " +
-                            "mods.size=" + (job.getManifestInfo() == null || job.getManifestInfo().getMods() == null ? null : job.getManifestInfo().getMods().size())
-            );
-        }
-
-        ManifestInfo manifestInfo = job.getManifestInfo();
-
-        // Export only for CURSEFORGE uploads in this Phase 1 implementation.
-        if (job.getModpackType() == ModpackType.CURSEFORGE) {
-            // IMPORTANT FIX (outputFileName provenance):
-            // Never trust job.outputFileName here; derive deterministically from wizard inputs:
-            // exportNameBase (if provided) -> manifest.packName -> jobId fallback
-            // and apply required suffix/extension.
-            String suffix = "_(PackPort.ddns.net)";
-
-            String originalBaseName;
-            if (job.getExportNameBase() != null && !job.getExportNameBase().isBlank()) {
-                originalBaseName = job.getExportNameBase().trim();
-            } else if (manifestInfo != null
-                    && manifestInfo.getPackName() != null
-                    && !manifestInfo.getPackName().isBlank()) {
-                originalBaseName = manifestInfo.getPackName();
-            } else {
-                originalBaseName = job.getJobId().toString();
-            }
-
-            // prevent double extensions if base already contains them
-            String lowerBase = originalBaseName.toLowerCase();
-            if (lowerBase.endsWith(".zip") || lowerBase.endsWith(".mrpack")) {
-                if (lowerBase.endsWith(".zip")) {
-                    originalBaseName = originalBaseName.substring(0, originalBaseName.length() - ".zip".length());
-                } else {
-                    originalBaseName = originalBaseName.substring(0, originalBaseName.length() - ".mrpack".length());
-                }
-            }
-
-            String outputFileName = originalBaseName + suffix + ".mrpack";
-
-            System.out.println(
-                    "[UploadController] before exportMrpackPhase1 (jobId=" + job.getJobId() + "): " +
-                            "packName=" + (manifestInfo == null ? null : manifestInfo.getPackName()) + ", " +
-                            "minecraftVersion=" + (manifestInfo == null ? null : manifestInfo.getMinecraftVersion()) + ", " +
-                            "loader=" + (manifestInfo == null ? null : manifestInfo.getLoader()) + ", " +
-                            "mods.size=" + (manifestInfo == null || manifestInfo.getMods() == null ? null : manifestInfo.getMods().size()) + ", " +
-                            "outputFileName=" + outputFileName
-            );
-
-            String createdOutput = modrinthExportService.exportMrpackPhase1(
-                    uploadId,
-                    job.getJobId(),
-                    outputFileName,
-                    manifestInfo
-            );
-
-            // Keep job output filename + result path consistent with stored file.
-            job.setOutputFileName(outputFileName);
-            job.setResultPath(createdOutput);
-        }
-
+        // Initialize persisted state for polling immediately.
+        job.setStatus(ConversionJobStatus.CREATED);
+        job.setProgress(0);
         jobService.saveJob(job);
+
+        // Keep wizard fields consistent with existing behavior:
+        // - ConversionService and runner will determine types when needed.
+        // - If CURSEFORGE type is forced/unknown, runner will parse manifest again as needed.
+        // We avoid doing heavy conversion/export synchronously here.
+        if (job.getModpackType() == ModpackType.UNKNOWN) {
+            // Keep existing behavior: ensure manifestInfo can be shared with runner if needed.
+            // This parse is cheaper than full conversion/export and avoids missing manifestInfo.
+            // If you want to fully defer even this, remove this block.
+            job.setModpackType(ModpackType.CURSEFORGE);
+            ManifestInfo parsed = curseForgeManifestParserService.parseManifest(uploadId, job.getJobId());
+            job.setManifestInfo(parsed);
+            jobService.saveJob(job);
+        }
+
+        // Start heavy conversion/export asynchronously so the upload endpoint returns immediately.
+        conversionJobRunnerService.runAsync(job);
 
         UploadResponse enriched = new UploadResponse(
                 uploadResponse.getUploadId(),
