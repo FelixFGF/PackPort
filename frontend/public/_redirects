@@ -1,0 +1,7 @@
+# Netlify SPA routing
+# Preserve robots and assets
+/robots.txt /robots.txt 200
+/assets/* /assets/:splat 200
+
+# SPA fallback
+/* /index.html 200
