@@ -13,14 +13,13 @@ public class SessionCookieConfig implements ServletContextListener {
 
         cookieConfig.setHttpOnly(true);
 
-        boolean secureCookies =
-                "true".equalsIgnoreCase(System.getenv("SECURE_COOKIES"))
-                        || System.getenv("RENDER") != null;
+        // Cross-origin session cookies (Netlify -> Render) require SameSite=None + Secure=true.
+        // Otherwise browsers may not include JSESSIONID on the subsequent GET /api/admin/session call.
+        cookieConfig.setSecure(true);
 
-        cookieConfig.setSecure(secureCookies);
-
-        // Best-effort: SameSite=Lax support varies by servlet container.
-        servletContext.setAttribute("sessionSameSite", "Lax");
+        // Best-effort: set SameSite attribute for common servlet container implementations.
+        servletContext.setAttribute("sessionSameSite", "None");
+        servletContext.setAttribute("sessionCookieSameSite", "None");
     }
 
     @Override
