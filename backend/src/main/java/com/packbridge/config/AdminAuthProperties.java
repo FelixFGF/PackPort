@@ -30,16 +30,16 @@ public class AdminAuthProperties {
             throw new IllegalStateException("Missing required environment variable: ADMIN_PASSWORD_HASH");
         }
 
-        // Safe debug logging (NO secret contents):
-        // - hash length
-        // - first 4 characters
-        // - last 4 characters
+        // REQUIRED SAFE DEBUG: print only length and ASCII codes of first 8 characters.
+        // (NO secret contents; never log the full hash.)
         int len = passwordHash.length();
-        String prefix4 = passwordHash.length() >= 4 ? passwordHash.substring(0, 4) : passwordHash;
-        String suffix4 = passwordHash.length() >= 4 ? passwordHash.substring(passwordHash.length() - 4) : passwordHash;
-        System.out.println(
-                "ADMIN_PASSWORD_HASH metadata: length=" + len + " prefix4=" + prefix4 + " suffix4=" + suffix4
-        );
+        System.out.println("ADMIN_PASSWORD_HASH length=" + len);
+
+        for (int i = 0; i < 8; i++) {
+            char c = (i < len) ? passwordHash.charAt(i) : '\0';
+            int ascii = (int) c;
+            System.out.println("char" + i + "='" + c + "' (" + ascii + ")");
+        }
 
         // BCrypt hashes have known prefixes like:
         // $2a$, $2b$, $2y$, followed by cost and the hash parts.
