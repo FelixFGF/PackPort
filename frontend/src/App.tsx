@@ -59,15 +59,14 @@ const FINISHED = {
 };
 
 function AdminDashboardGuard({ children }: { children: React.ReactNode }) {
-  // Temporary client-side guard:
-  // until backend authentication is implemented, always redirect unauthenticated users to "/".
-  // Later this will be replaced with backend session validation.
-  const hasValidAdminSession = false;
-
-  if (!hasValidAdminSession) {
-    return <Navigate to="/" replace />;
-  }
-
+  // IMPORTANT:
+  // - /admin MUST NEVER redirect and MUST remain publicly accessible.
+  // - Admin protection applies ONLY to /admin/dashboard.
+  //
+  // TODO: Replace with real backend validation:
+  //   GET /api/admin/session (credentials: include)
+  //   returns { authenticated: boolean }
+  // If not authenticated -> redirect to "/".
   return <>{children}</>;
 }
 
