@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://packport.ddns.net/</loc>
+    <loc>https://packport.netlify.app/</loc>
   </url>
   <url>
-    <loc>https://packport.ddns.net/scan</loc>
+    <loc>https://packport.netlify.app/scan</loc>
   </url>
   <url>
-    <loc>https://packport.ddns.net/target</loc>
+    <loc>https://packport.netlify.app/target</loc>
   </url>
   <url>
-    <loc>https://packport.ddns.net/unsupported-mods</loc>
+    <loc>https://packport.netlify.app/unsupported-mods</loc>
   </url>
   <url>
-    <loc>https://packport.ddns.net/convert</loc>
+    <loc>https://packport.netlify.app/convert</loc>
   </url>
   <url>
-    <loc>https://packport.ddns.net/finished</loc>
+    <loc>https://packport.netlify.app/finished</loc>
   </url>
 </urlset>
