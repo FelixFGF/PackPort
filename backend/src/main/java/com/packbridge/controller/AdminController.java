@@ -48,6 +48,19 @@ public class AdminController {
         boolean passwordMatches = passwordEncoder.matches(password, adminAuthProperties.getPasswordHash());
 
         if (!usernameMatches || !passwordMatches) {
+            // TEMP debug logging (no secrets):
+            // - only booleans usernameMatches/passwordMatches
+            // - and whether properties are loaded (true/false)
+            // We avoid logging username/password/hash values.
+            System.out.println("[AdminAuth] usernameMatches=" + usernameMatches);
+            System.out.println("[AdminAuth] passwordMatches=" + passwordMatches);
+
+            boolean usernameLoaded = adminAuthProperties.getUsername() != null;
+            boolean passwordHashLoaded = adminAuthProperties.getPasswordHash() != null;
+
+            System.out.println("[AdminAuth] usernameLoaded=" + usernameLoaded);
+            System.out.println("[AdminAuth] passwordHashLoaded=" + passwordHashLoaded);
+
             // Same generic message; do not reveal which part failed.
             return ResponseEntity.status(401).body(Map.of(
                     "success", false,
