@@ -30,17 +30,6 @@ public class AdminAuthProperties {
             throw new IllegalStateException("Missing required environment variable: ADMIN_PASSWORD_HASH");
         }
 
-        // REQUIRED SAFE DEBUG: print only length and ASCII codes of first 8 characters.
-        // (NO secret contents; never log the full hash.)
-        int len = passwordHash.length();
-        System.out.println("ADMIN_PASSWORD_HASH length=" + len);
-
-        for (int i = 0; i < 8; i++) {
-            char c = (i < len) ? passwordHash.charAt(i) : '\0';
-            int ascii = (int) c;
-            System.out.println("char" + i + "='" + c + "' (" + ascii + ")");
-        }
-
         // BCrypt hashes have known prefixes like:
         // $2a$, $2b$, $2y$, followed by cost and the hash parts.
         // This validation prevents the runtime error "Encoded password does not look like BCrypt".
