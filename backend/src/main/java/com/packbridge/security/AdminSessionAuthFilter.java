@@ -27,7 +27,6 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
         if ("/api/admin/session".equals(path) && "GET".equalsIgnoreCase(request.getMethod())) return true;
         if ("/api/admin/logout".equals(path) && "POST".equalsIgnoreCase(request.getMethod())) return true;
 
-        System.out.println("ENTERED AdminSessionAuthFilter.shouldNotFilter path=" + path + " method=" + request.getMethod() + " result=false");
         return false;
     }
 
@@ -37,8 +36,6 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-
-        System.out.println("ENTERED AdminSessionAuthFilter.doFilterInternal");
 
         HttpServletRequest req = request;
 

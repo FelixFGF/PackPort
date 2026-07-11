@@ -33,12 +33,10 @@ public class AdminController {
             @RequestBody Map<String, Object> body,
             HttpServletRequest request
     ) {
-        System.out.println("ENTERED AdminController.login");
         String username = body.get("username") != null ? body.get("username").toString() : null;
         String password = body.get("password") != null ? body.get("password").toString() : null;
 
         if (username == null || password == null) {
-            // Same generic message to avoid leaking auth details
             return ResponseEntity.status(401).body(Map.of(
                     "success", false,
                     "message", "Invalid username or password."
@@ -49,19 +47,6 @@ public class AdminController {
         boolean passwordMatches = passwordEncoder.matches(password, adminAuthProperties.getPasswordHash());
 
         if (!usernameMatches || !passwordMatches) {
-            // TEMP debug logging (no secrets):
-            // - only booleans usernameMatches/passwordMatches
-            // - and whether properties are loaded (true/false)
-            // We avoid logging username/password/hash values.
-            System.out.println("[AdminAuth] usernameMatches=" + usernameMatches);
-            System.out.println("[AdminAuth] passwordMatches=" + passwordMatches);
-
-            boolean usernameLoaded = adminAuthProperties.getUsername() != null;
-            boolean passwordHashLoaded = adminAuthProperties.getPasswordHash() != null;
-
-            System.out.println("[AdminAuth] usernameLoaded=" + usernameLoaded);
-            System.out.println("[AdminAuth] passwordHashLoaded=" + passwordHashLoaded);
-
             // Same generic message; do not reveal which part failed.
             return ResponseEntity.status(401).body(Map.of(
                     "success", false,
@@ -92,7 +77,7 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null) {
-            session.invalidate(); // fully invalidate server-side session
+            session.invalidate();
         }
         return ResponseEntity.ok(Map.of("success", true));
     }

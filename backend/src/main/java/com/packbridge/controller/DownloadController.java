@@ -54,11 +54,6 @@ public class DownloadController {
         String outputFileName = job.getOutputFileName();
         String resultPath = job.getResultPath();
 
-        // Temporary debug logging (as requested)
-        System.out.println("DOWNLOAD DEBUG:");
-        System.out.println("job.outputFileName = " + job.getOutputFileName());
-        System.out.println("job.resultPath = " + job.getResultPath());
-
         // 0) Primary resolve using job.resultPath (full exporter path)
         Path outputFile = null;
         boolean usedFallback = false;
@@ -66,29 +61,9 @@ public class DownloadController {
         if (resultPath != null && !resultPath.isBlank()) {
             Path resolved = Paths.get(resultPath).toAbsolutePath().normalize();
 
-            System.out.println("primaryResolve=job.resultPath");
-            System.out.println("jobId=" + job.getJobId());
-            System.out.println("uploadId=" + job.getUploadId());
-            System.out.println("job.resultPath=" + resultPath);
-
-            System.out.println("resolved file (resultPath) = " + resolved);
-            System.out.println("exists (resultPath) = " + Files.exists(resolved));
-            System.out.println("isRegularFile (resultPath) = " + Files.isRegularFile(resolved));
-
             if (Files.exists(resolved) && Files.isRegularFile(resolved)) {
-                try {
-                    long size = Files.size(resolved);
-                    System.out.println("size (resultPath) = " + size + " bytes");
-                } catch (IOException ignore) {
-                    System.out.println("size (resultPath) = unknown");
-                }
                 outputFile = resolved;
-                System.out.println("branch = resultPath (generated export selection)");
-            } else {
-                System.out.println("branch = resultPath (missing; will consider outputFileName fallback chain)");
             }
-        } else {
-            System.out.println("primaryResolve=job.resultPath skipped because resultPath is blank/null");
         }
 
         // 1) Resolve output file name from job (existing behavior)
@@ -99,28 +74,8 @@ public class DownloadController {
                     .resolve(outputFileName)
                     .normalize();
 
-            System.out.println("resolveByOutputFileName=outputFileName");
-            System.out.println("job.outputFileName=" + outputFileName);
-            System.out.println("resolved file = " + candidate.toAbsolutePath());
-
-            boolean exists = Files.exists(candidate);
-            boolean isRegular = Files.isRegularFile(candidate);
-
-            System.out.println("exists = " + exists);
-            System.out.println("isRegularFile = " + isRegular);
-
-            if (exists && isRegular) {
-                try {
-                    long size = Files.size(candidate);
-                    System.out.println("size (outputFileName) = " + size + " bytes");
-                } catch (IOException ignore) {
-                    System.out.println("size (outputFileName) = unknown");
-                }
-
+            if (Files.exists(candidate) && Files.isRegularFile(candidate)) {
                 outputFile = candidate;
-                System.out.println("branch = outputFileName (generated export selection)");
-            } else {
-                System.out.println("branch = outputFileName (missing; will consider fallback)");
             }
         }
 
@@ -129,40 +84,16 @@ public class DownloadController {
             usedFallback = true;
             String uploadIdStr = job.getUploadId() == null ? null : job.getUploadId().toString();
 
-            System.out.println("branch = fallback (upload artifact) enabled uploadIdStr=" + uploadIdStr);
-
             if (uploadIdStr != null) {
                 Path mrpackCandidate = fileStorageLocation.resolve(uploadIdStr + ".mrpack").normalize();
-                System.out.println("resolved file (fallback mrpack) = " + mrpackCandidate.toAbsolutePath());
-                System.out.println("exists (fallback mrpack) = " + Files.exists(mrpackCandidate));
-                System.out.println("isRegularFile (fallback mrpack) = " + Files.isRegularFile(mrpackCandidate));
 
                 if (Files.exists(mrpackCandidate) && Files.isRegularFile(mrpackCandidate)) {
-                    try {
-                        long size = Files.size(mrpackCandidate);
-                        System.out.println("size (fallback mrpack) = " + size + " bytes");
-                    } catch (IOException ignore) {
-                        System.out.println("size (fallback mrpack) = unknown");
-                    }
-
                     outputFile = mrpackCandidate;
-                    System.out.println("fallbackSelection = <uploadId>.mrpack");
                 } else {
                     Path zipCandidate = fileStorageLocation.resolve(uploadIdStr + ".zip").normalize();
-                    System.out.println("resolved file (fallback zip) = " + zipCandidate.toAbsolutePath());
-                    System.out.println("exists (fallback zip) = " + Files.exists(zipCandidate));
-                    System.out.println("isRegularFile (fallback zip) = " + Files.isRegularFile(zipCandidate));
 
                     if (Files.exists(zipCandidate) && Files.isRegularFile(zipCandidate)) {
-                        try {
-                            long size = Files.size(zipCandidate);
-                            System.out.println("size (fallback zip) = " + size + " bytes");
-                        } catch (IOException ignore) {
-                            System.out.println("size (fallback zip) = unknown");
-                        }
-
                         outputFile = zipCandidate;
-                        System.out.println("fallbackSelection = <uploadId>.zip");
                     }
                 }
             }
@@ -191,15 +122,10 @@ public class DownloadController {
                     reason
             );
 
-            System.out.println("DOWNLOAD 404 debug reason: " + reason);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Output file not found");
         }
 
         String downloadName = buildDownloadFileName(job);
-        System.out.println("content-disposition = " + downloadName);
-        System.out.println("servingGeneratedExport = " + !usedFallback);
-        System.out.println("final resolved outputFile = " + outputFile.toAbsolutePath());
-        System.out.println("final exists = " + Files.exists(outputFile));
 
         String downloadFileName = downloadName;
 
@@ -260,10 +186,6 @@ public class DownloadController {
     }
 
     private String buildDownloadFileName(ConversionJob job) {
-        System.out.println(
-                "[DownloadController] buildDownloadFileName: packName(before read)="
-                        + (job.getManifestInfo() == null ? null : job.getManifestInfo().getPackName()));
-
         String packName = null;
 
         if (job.getManifestInfo() != null && job.getManifestInfo().getPackName() != null) {

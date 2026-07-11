@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
 
 @Service
 public class ModrinthExportService {
@@ -51,7 +50,6 @@ public class ModrinthExportService {
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         // Build clients + resolution service inside export service constructor
-        // (keine Refactorings in unrelated components; ModrinthExportService bleibt Coordinator).
         var curseForgeClient = new CurseForgeClient(curseForgeRestClient, this.objectMapper);
         var modrinthClient = new ModrinthClient(modrinthRestClient, this.objectMapper);
 
@@ -65,14 +63,6 @@ public class ModrinthExportService {
         if (jobId == null) {
             throw new IllegalArgumentException("jobId is required");
         }
-
-        System.out.println(
-                "[ModrinthExportService] exportMrpackPhase1 start (uploadId=" + uploadId + ", jobId=" + jobId + "): " +
-                        "packName=" + (manifestInfo == null ? null : manifestInfo.getPackName()) + ", " +
-                        "minecraftVersion=" + (manifestInfo == null ? null : manifestInfo.getMinecraftVersion()) + ", " +
-                        "loader=" + (manifestInfo == null ? null : manifestInfo.getLoader()) + ", " +
-                        "mods.size=" + (manifestInfo == null || manifestInfo.getMods() == null ? null : manifestInfo.getMods().size())
-        );
 
         // Input is the CurseForge upload that was saved by FileUploadService.
         Path jobDir = fileStorageLocation.resolve(jobId.toString()).normalize();
@@ -165,7 +155,7 @@ public class ModrinthExportService {
 
         try (ZipFile zipFile = new ZipFile(input.toFile());
              OutputStream fileOut = Files.newOutputStream(outputMrpack);
-             ZipOutputStream zipOut = new ZipOutputStream(fileOut, StandardCharsets.UTF_8)) {
+             java.util.zip.ZipOutputStream zipOut = new java.util.zip.ZipOutputStream(fileOut, StandardCharsets.UTF_8)) {
 
             writeJsonEntry(zipOut, "modrinth.index.json", index);
 
@@ -197,7 +187,7 @@ public class ModrinthExportService {
         return outputMrpack.toString();
     }
 
-    private void writeJsonEntry(ZipOutputStream zipOut, String entryName, Object value) throws IOException {
+    private void writeJsonEntry(java.util.zip.ZipOutputStream zipOut, String entryName, Object value) throws IOException {
         ZipEntry entry = new ZipEntry(entryName);
         zipOut.putNextEntry(entry);
 

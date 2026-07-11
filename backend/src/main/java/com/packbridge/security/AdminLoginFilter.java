@@ -33,8 +33,6 @@ public class AdminLoginFilter extends AbstractAuthenticationProcessingFilter {
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
             throws AuthenticationException, IOException, ServletException {
 
-        System.out.println("ENTERED AdminLoginFilter");
-
         String contentType = request.getContentType();
         if (contentType == null || !contentType.toLowerCase().contains(MediaType.APPLICATION_JSON_VALUE)) {
             // Still try to parse as JSON; many clients omit Content-Type.

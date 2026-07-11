@@ -24,8 +24,6 @@ public class AdminAuthenticationProvider implements AuthenticationProvider {
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        System.out.println("ENTERED AuthenticationProvider");
-
         if (!(authentication instanceof AdminAuthenticationToken token)) {
             return null;
         }
