@@ -13,6 +13,7 @@ import { FinishedPage } from "./pages/FinishedPage";
 import { StartupLoader } from "./components/StartupLoader";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import { AdminLayout } from "./layouts/AdminLayout";
 
 const HOME = {
   title: "PackPort.ddns.net | Home",
@@ -141,15 +142,26 @@ export default function App() {
                 </>
               }
             />
-            <Route path="/admin" element={<AdminLoginPage />} />
+
+            <Route
+              path="/admin"
+              element={
+                <AdminLayout>
+                  <AdminLoginPage />
+                </AdminLayout>
+              }
+            />
             <Route
               path="/admin/dashboard"
               element={
-                <AdminDashboardGuard>
-                  <AdminDashboardPage />
-                </AdminDashboardGuard>
+                <AdminLayout>
+                  <AdminDashboardGuard>
+                    <AdminDashboardPage />
+                  </AdminDashboardGuard>
+                </AdminLayout>
               }
             />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </StepLayout>

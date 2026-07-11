@@ -25,7 +25,11 @@ export default function AdminLoginPage() {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="flex items-center gap-3">
           <div className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500/20 via-cyan-500/20 to-amber-500/20 ring-1 ring-white/10">
-            <img src="/assets/images/packport-logo.png" alt="PackPort" className="h-10 w-10" />
+            <img
+              src="/assets/images/packport-dev.png"
+              alt="PackPort DEV"
+              className="h-10 w-10"
+            />
             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-400/20 via-transparent to-transparent" />
           </div>
           <div className="leading-tight">
@@ -42,7 +46,9 @@ export default function AdminLoginPage() {
               <span className="text-lg">⚠️</span>
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold text-red-100">Authentication required</div>
+              <div className="text-sm font-semibold text-red-100">
+                Authentication required
+              </div>
               <div className="mt-1 text-sm leading-relaxed text-red-200/90">
                 This area is restricted. Do not share admin credentials.
               </div>
@@ -61,7 +67,9 @@ export default function AdminLoginPage() {
           >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-200">Username</label>
+                <label className="block text-sm font-medium text-zinc-200">
+                  Username
+                </label>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -73,7 +81,9 @@ export default function AdminLoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-200">Password</label>
+                <label className="block text-sm font-medium text-zinc-200">
+                  Password
+                </label>
                 <input
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
