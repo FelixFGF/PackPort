@@ -117,7 +117,7 @@ public class ConversionService {
     }
 
     private String buildExportFileName(ConversionJob job) {
-        String suffix = "_(PackPort.ddns.net)";
+        String suffix = "_(PackPort.Netlify.App)";
 
         String originalBaseName = null;
         String extension = null;

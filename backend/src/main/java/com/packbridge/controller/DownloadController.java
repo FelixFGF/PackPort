@@ -202,6 +202,6 @@ public class DownloadController {
             base = "PackPort";
         }
 
-        return base + " (PackPort.ddns.net).mrpack";
+        return base + " (PackPort.Netlify.App).mrpack";
     }
 }

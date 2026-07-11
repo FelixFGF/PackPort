@@ -127,14 +127,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
 
     const step6Unlocked = hasJob && isDone;
 
-    return [
-      step1Unlocked,
-      step2Unlocked,
-      step3Unlocked,
-      step4Unlocked,
-      step5Unlocked,
-      step6Unlocked,
-    ];
+    return [step1Unlocked, step2Unlocked, step3Unlocked, step4Unlocked, step5Unlocked, step6Unlocked];
   }, [jobId, status]);
 
   const lockTooltip = "Complete the previous step first.";
@@ -265,7 +258,22 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
           {/* Center section */}
           <div className="max-w-md whitespace-pre-line text-[12px] leading-relaxed text-zinc-500">
             © 2026 FelixFGF {"\n"}
-            All rights reserved. {"\n\n"}
+            <a
+              href="https://github.com/FelixFGF/PackPort/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-300/90 underline decoration-cyan-300/30 hover:decoration-cyan-300/60"
+            >
+              AGPL-3.0 License
+            </a>{"\n\n"}
+            <a
+              href="https://github.com/FelixFGF/PackPort"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-cyan-300/90 underline decoration-cyan-300/30 hover:decoration-cyan-300/60"
+            >
+              Open Source ❤️
+            </a>{"\n"}
             PackPort is a fan-made project. {"\n"}
             Not affiliated with Mojang, CurseForge or Modrinth.
           </div>
@@ -278,13 +286,24 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
                 Join our Discord community if you have questions, want to report bugs, or suggest new features.
               </div>
 
-              <button
-                type="button"
-                onClick={() => setDiscordModalOpen(true)}
-                className="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400/15 px-4 py-2.5 text-sm font-medium text-cyan-200 ring-1 ring-cyan-300/30 transition hover:bg-cyan-400/20 sm:w-auto"
-              >
-                Join Discord
-              </button>
+              <div className="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => setDiscordModalOpen(true)}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-400/15 px-4 py-2.5 text-sm font-medium text-cyan-200 ring-1 ring-cyan-300/30 transition hover:bg-cyan-400/20 sm:w-auto"
+                >
+                  Join Discord
+                </button>
+
+                <a
+                  href="https://github.com/FelixFGF/PackPort/issues"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-red-500/15 px-4 py-2.5 text-sm font-semibold text-red-200 ring-1 ring-red-300/20 transition hover:bg-red-500/25 sm:w-auto"
+                >
+                  Report Issue
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -306,9 +325,7 @@ export function StepLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="mt-4 text-sm leading-relaxed text-zinc-300">
-              PackPort is still in early development.
-            </div>
+            <div className="mt-4 text-sm leading-relaxed text-zinc-300">PackPort is still in early development.</div>
 
             <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 shadow-[0_0_0_1px_rgba(239,68,68,0.12)]">
               <div className="flex items-center gap-2 text-sm font-semibold text-red-100">
