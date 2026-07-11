@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { PackBridgeFlowProvider } from "./hooks/usePackBridgeFlow";
@@ -10,6 +10,7 @@ import { TargetPlatformPage } from "./pages/TargetPlatformPage";
 import { UnsupportedModsPage } from "./pages/UnsupportedModsPage";
 import { ConversionProgressPage } from "./pages/ConversionProgressPage";
 import { FinishedPage } from "./pages/FinishedPage";
+import { StartupLoader } from "./components/StartupLoader";
 
 const HOME = {
   title: "PackPort.ddns.net | Home",
@@ -54,6 +55,16 @@ const FINISHED = {
 };
 
 export default function App() {
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+
+  const handleConnected = useCallback(() => {
+    setIsBackendConnected(true);
+  }, []);
+
+  if (!isBackendConnected) {
+    return <StartupLoader onConnected={handleConnected} />;
+  }
+
   return (
     <HelmetProvider>
       <PackBridgeFlowProvider>
