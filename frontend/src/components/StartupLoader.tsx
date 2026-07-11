@@ -16,6 +16,7 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
 
   const progressRafRef = useRef<number | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
+  const fadeTimeoutRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const backendUrl = useMemo(
@@ -31,12 +32,13 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
     const minDurationMs = 40_000;
 
     const tick = () => {
-      const elapsed = Date.now() - startTimeRef.current;
       if (!mounted || successRef.current) return;
 
+      const elapsed = Date.now() - startTimeRef.current;
       const t = Math.min(1, elapsed / minDurationMs);
       const eased = 1 - Math.pow(1 - t, 3);
       const next = Math.max(0, Math.floor(eased * targetMax));
+
       setProgress((p) => (next > p ? next : p));
 
       progressRafRef.current = window.requestAnimationFrame(tick);
@@ -47,15 +49,16 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
     const pollOnce = async () => {
       if (!mounted || successRef.current) return;
 
+      // phase text only (visual) — does NOT re-run polling effect
       const elapsed = Date.now() - startTimeRef.current;
-      if (elapsed >= 5 * 60_000 && phase !== "long") setPhase("long");
+      if (elapsed >= 5 * 60_000) setPhase("long");
 
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
       try {
-        console.log("[StartupLoader] request URL:", backendUrl);
+        console.log("[StartupLoader] request URL", backendUrl);
 
         const response = await fetch(backendUrl, {
           method: "GET",
@@ -63,82 +66,84 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
           signal: controller.signal,
         });
 
-        console.log("[StartupLoader] HTTP status:", response.status);
+        console.log("status", response.status);
 
         const text = await response.text();
-        console.log("[StartupLoader] response body (raw):", text);
+        console.log("body", text);
 
-        const ok =
-          response.status === 200 && text.trim() === "OK";
+        const connectedNow = response.status === 200 && text.trim() === "OK";
 
-        console.log("[StartupLoader] ok condition:", ok);
-
-        if (ok) {
+        if (connectedNow) {
+          console.log("connected");
           successRef.current = true;
 
-          // Must instantly complete progress once confirmed online.
+          // required behavior: instantly finish and immediately free app
           setProgress(100);
           setPhase("connected");
           setIsFadingOut(true);
 
-          console.log("[StartupLoader] loader ready -> switching to app");
+          // Stop polling + timeouts immediately
+          if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
 
-          // Fade-out trigger + then switch app. No artificial long wait.
-          window.setTimeout(() => {
-            if (!mounted) return;
-            onConnected();
-          }, 50);
+          if (fadeTimeoutRef.current) window.clearTimeout(fadeTimeoutRef.current);
+          fadeTimeoutRef.current = null;
+
+          if (abortRef.current) abortRef.current.abort();
+
+          // Must fire onConnected right away after confirmation
+          console.log("onConnected fired");
+          onConnected();
         }
-      } catch (err) {
-        console.error("[StartupLoader] fetch failed (network/CORS?):", err);
+      } catch (error) {
+        // required: show exact errors
+        console.error(error);
       }
     };
 
-    // immediately poll; then adapt interval (2s until 5 min, then 5s)
-    void pollOnce();
+    // Single polling interval:
+    // - first request immediately
+    // - then every 2s; after 5 minutes, switch to 5s (still ONE interval mechanism by restarting)
+    let intervalMs = 2000;
 
-    const interval = window.setInterval(() => {
-      if (!mounted || successRef.current) return;
+    const applyInterval = () => {
+      if (!mounted) return;
 
       const elapsed = Date.now() - startTimeRef.current;
-      const intervalMs = elapsed >= 5 * 60_000 ? 5000 : 2000;
+      const nextInterval = elapsed >= 5 * 60_000 ? 5000 : 2000;
 
-      // We can't change setInterval duration dynamically without restarting;
-      // simplest: restart interval only when crossing 5 minutes.
-      // For correctness, just keep 2s polling here; fetch will be very cheap.
-      // Requirement allows continuing polling every 5 seconds after 5 minutes,
-      // but not to freeze. We'll handle by restarting once at 5 minutes.
-      void intervalMs; // no-op to avoid lint noise
+      if (nextInterval !== intervalMs) {
+        intervalMs = nextInterval;
+        if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = window.setInterval(() => {
+          void pollOnce();
+        }, intervalMs);
+      }
+    };
 
+    void pollOnce();
+
+    pollIntervalRef.current = window.setInterval(() => {
+      applyInterval();
       void pollOnce();
     }, 2000);
 
-    pollIntervalRef.current = interval;
-
-    const switchTimer = window.setInterval(() => {
-      if (!mounted || successRef.current) return;
-
-      const elapsed = Date.now() - startTimeRef.current;
-      if (elapsed >= 5 * 60_000 && phase !== "long") {
-        setPhase("long");
-        if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
-
-        pollIntervalRef.current = window.setInterval(() => {
-          void pollOnce();
-        }, 5000);
-      }
-    }, 1000);
-
     return () => {
       mounted = false;
+
+      if (progressRafRef.current) window.cancelAnimationFrame(progressRafRef.current);
+      progressRafRef.current = null;
+
       if (pollIntervalRef.current) window.clearInterval(pollIntervalRef.current);
-      window.clearInterval(switchTimer);
-      if (progressRafRef.current)
-        window.cancelAnimationFrame(progressRafRef.current);
+      pollIntervalRef.current = null;
+
+      if (fadeTimeoutRef.current) window.clearTimeout(fadeTimeoutRef.current);
+      fadeTimeoutRef.current = null;
+
       if (abortRef.current) abortRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backendUrl, onConnected, phase]);
+  }, [backendUrl, onConnected]);
 
   return (
     <div
@@ -159,21 +164,21 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
         <div className="text-white">
           <div className="text-3xl font-semibold">Waking up PackPort...</div>
           <div className="mt-3 text-sm text-white/70">
-            {phase === "long" ? (
-              "The server is taking longer than expected. Please keep this page open."
-            ) : (
-              <>
-                Our free server is starting.
-                <br />
-                This usually takes 30–60 seconds.
-              </>
-            )}
+            {phase === "long"
+              ? "The server is taking longer than expected. Please keep this page open."
+              : <>
+                  Our free server is starting.
+                  <br />
+                  This usually takes 30–60 seconds.
+                </>}
           </div>
         </div>
 
         <div className="w-full">
           <div className="mb-2 text-left text-xs font-medium text-white/60">
-            {phase === "connected" ? "Connected!" : "Connecting to backend..."}
+            {phase === "connected"
+              ? "Connected!"
+              : "Connecting to backend..."}
           </div>
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
