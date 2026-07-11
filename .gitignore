@@ -12,9 +12,19 @@ build/
 node_modules/
 dist/
 
+# IDE
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
 # Temporary icon generation script
 frontend/scripts/
 
-
-
+# Temporary files
 tmp_file_check.txt
