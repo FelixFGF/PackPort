@@ -41,7 +41,10 @@ type ApiResponse<T> = {
   data: T;
 };
 
-const API_BASE = "";
+// MUST use the same backend base URL everywhere (Netlify otherwise breaks /api/*)
+const API_BASE =
+  import.meta.env.VITE_API_URL ?? "https://packport-backend.onrender.com";
+
 function toApiUrl(path: string) {
   return `${API_BASE}${path}`;
 }
