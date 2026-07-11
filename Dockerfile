@@ -1,20 +1,13 @@
-# ---------- Build ----------
-FROM eclipse-temurin:17-jdk AS builder
-
-WORKDIR /app/backend
-
-COPY backend/ .
-
-RUN chmod +x gradlew
-RUN ./gradlew bootJar --no-daemon
-
-# ---------- Runtime ----------
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
-COPY --from=builder /app/backend/build/libs/backend-0.0.1-SNAPSHOT.jar app.jar
+COPY . .
+
+WORKDIR /app/backend
+
+RUN ./gradlew.bat bootJar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java","-jar","app.jar"]
+CMD ["java","-jar","build/libs/backend-0.0.1-SNAPSHOT.jar","--server.port=8080"]
