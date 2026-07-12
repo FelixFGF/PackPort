@@ -31,3 +31,7 @@ tmp_file_check.txt
 
 # TODO
 TODO.md
+
+#--Build--#
+Frontend/dist/
+Backend/build/
