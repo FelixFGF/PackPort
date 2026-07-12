@@ -1,21 +1,19 @@
 package com.packbridge.config;
 
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextListener;
 
+/**
+ * Intentionally no-op.
+ * Session cookie attributes (Secure/HttpOnly/SameSite) are configured via Spring Boot
+ * application.properties using official server.servlet.session.cookie.* properties.
+ */
 public class SessionCookieConfig implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        ServletContext servletContext = sce.getServletContext();
-        jakarta.servlet.SessionCookieConfig cookieConfig = servletContext.getSessionCookieConfig();
-
-        cookieConfig.setHttpOnly(true);
-
-        // Cross-origin cookies (Netlify -> Render) require Secure + SameSite=None.
-        // Secure must be true when SameSite=None is used.
-        cookieConfig.setSecure(true);
+        // no-op
     }
 
     @Override
