@@ -47,13 +47,9 @@ public class DebugCurseForgeManifestExtractionTest {
               .thenComparing(ZipEntry::getName))
           .toList();
 
-      System.out.println("ZIP=" + zipPath);
-      System.out.println("manifest.json entries=" + manifestEntries.size());
-
       Assumptions.assumeTrue(!manifestEntries.isEmpty(), "manifest.json not found inside zip: " + zipPath);
 
       ZipEntry manifestEntry = manifestEntries.get(0);
-      System.out.println("using manifest entry=" + manifestEntry.getName());
 
       try (InputStream is = zipFile.getInputStream(manifestEntry)) {
         ObjectMapper mapper = new ObjectMapper();
@@ -61,42 +57,22 @@ public class DebugCurseForgeManifestExtractionTest {
 
         CurseForgeManifestDto dto = mapper.readValue(is, CurseForgeManifestDto.class);
 
-        System.out.println("=== DESERIALIZED CurseForgeManifestDto ===");
-        System.out.println("name=" + dto.getName());
-        System.out.println("version=" + dto.getVersion());
-        System.out.println("author=" + dto.getAuthor());
+        // Basic sanity checks
+        Assumptions.assumeTrue(dto.getName() != null && !dto.getName().isBlank(), "Missing manifest.name");
 
         MinecraftInfo mc = dto.getMinecraft();
-        System.out.println("minecraft.version=" + (mc == null ? null : mc.getVersion()));
-
-        List<ModLoader> modLoaders = (mc == null ? null : mc.getModLoaders());
-        System.out.println("minecraft.modLoaders count=" + (modLoaders == null ? null : modLoaders.size()));
-
-        if (modLoaders != null) {
-          for (int i = 0; i < modLoaders.size(); i++) {
-            ModLoader ml = modLoaders.get(i);
-            System.out.println("minecraft.modLoaders[" + i + "].id=" + ml.getId());
-            System.out.println("minecraft.modLoaders[" + i + "].primary=" + ml.isPrimary());
-          }
+        if (mc != null) {
+          mc.getModLoaders();
         }
 
         List<FileEntry> files = dto.getFiles();
-        System.out.println("files count=" + (files == null ? null : files.size()));
-
         if (files != null) {
-          for (int i = 0; i < files.size(); i++) {
-            FileEntry f = files.get(i);
-            System.out.println(
-                "files[" + i + "]: projectID=" + f.getProjectID()
-                    + ", fileID=" + f.getFileID()
-                    + ", required=" + f.isRequired()
-                    + ", isLocked=" + f.isLocked()
-            );
-            if (i >= 5) {
-              System.out.println("(printing truncated after first 6 entries)");
-              break;
-            }
-          }
+          files.size();
+        }
+
+        List<ModLoader> modLoaders = mc != null ? mc.getModLoaders() : null;
+        if (modLoaders != null) {
+          modLoaders.size();
         }
       }
     }

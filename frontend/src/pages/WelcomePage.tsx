@@ -120,9 +120,6 @@ export function WelcomePage() {
 
       const json: ApiResponse<UploadResponse> = await res.json();
 
-      // Debugging: verify backend upload response shape during flow issues.
-      console.log("UPLOAD RESPONSE:", json);
-
       if (!json?.success || !json?.data?.uploadId) {
         throw new Error(json?.message || "Upload failed: invalid server response.");
       }
