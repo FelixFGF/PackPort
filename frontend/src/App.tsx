@@ -16,6 +16,19 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { WizardGuard } from "./guards/WizardGuard";
 
+import AdminDashboardWelcomePage from "./pages/AdminDashboardWelcomePage";
+import AdminDashboardAnalyticsPage from "./pages/AdminDashboardAnalyticsPage";
+import AdminDashboardErrorsPage from "./pages/AdminDashboardErrorsPage";
+import AdminDashboardLogsPage from "./pages/AdminDashboardLogsPage";
+import AdminDashboardActivityPage from "./pages/AdminDashboardActivityPage";
+import AdminDashboardConversionsPage from "./pages/AdminDashboardConversionsPage";
+import AdminDashboardSystemPage from "./pages/AdminDashboardSystemPage";
+import AdminDashboardSecurityPage from "./pages/AdminDashboardSecurityPage";
+import AdminDashboardSettingsPage from "./pages/AdminDashboardSettingsPage";
+
+import { AdminGuard } from "./guards/AdminGuard";
+import { GlobalErrorReporter } from "./components/error/GlobalErrorReporter";
+
 const HOME = {
   title: "PackPort.ddns.net | Home",
   description:
@@ -58,18 +71,6 @@ const FINISHED = {
   canonicalPath: "/finished",
 };
 
-function AdminDashboardGuard({ children }: { children: React.ReactNode }) {
-  // IMPORTANT:
-  // - /admin MUST NEVER redirect and MUST remain publicly accessible.
-  // - Admin protection applies ONLY to /admin/dashboard.
-  //
-  // TODO: Replace with real backend validation:
-  //   GET /api/admin/session (credentials: include)
-  //   returns { authenticated: boolean }
-  // If not authenticated -> redirect to "/".
-  return <>{children}</>;
-}
-
 export default function App() {
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
@@ -85,96 +86,203 @@ export default function App() {
     <HelmetProvider>
       <PackBridgeFlowProvider>
         <StepLayout>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <>
-                  <SEO config={HOME} />
-                  <WelcomePage />
-                </>
-              }
-            />
+          <GlobalErrorReporter>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <>
+                    <SEO config={HOME} />
+                    <WelcomePage />
+                  </>
+                }
+              />
 
-            {/* Wizard routes only (scoped protection) */}
-            <Route
-              path="/scan"
-              element={
-                <WizardGuard>
-                  <>
-                    <SEO config={SCAN} />
-                    <ScanResultPage />
-                  </>
-                </WizardGuard>
-              }
-            />
-            <Route
-              path="/target"
-              element={
-                <WizardGuard>
-                  <>
-                    <SEO config={OUTPUT} />
-                    <TargetPlatformPage />
-                  </>
-                </WizardGuard>
-              }
-            />
-            <Route
-              path="/unsupported-mods"
-              element={
-                <WizardGuard>
-                  <>
-                    <SEO config={PROBLEMS} />
-                    <UnsupportedModsPage />
-                  </>
-                </WizardGuard>
-              }
-            />
-            <Route
-              path="/convert"
-              element={
-                <WizardGuard>
-                  <>
-                    <SEO config={CONVERT} />
-                    <ConversionProgressPage />
-                  </>
-                </WizardGuard>
-              }
-            />
-            <Route
-              path="/finished"
-              element={
-                <WizardGuard>
-                  <>
-                    <SEO config={FINISHED} />
-                    <FinishedPage />
-                  </>
-                </WizardGuard>
-              }
-            />
+              {/* Wizard routes only (scoped protection) */}
+              <Route
+                path="/scan"
+                element={
+                  <WizardGuard>
+                    <>
+                      <SEO config={SCAN} />
+                      <ScanResultPage />
+                    </>
+                  </WizardGuard>
+                }
+              />
+              <Route
+                path="/target"
+                element={
+                  <WizardGuard>
+                    <>
+                      <SEO config={OUTPUT} />
+                      <TargetPlatformPage />
+                    </>
+                  </WizardGuard>
+                }
+              />
+              <Route
+                path="/unsupported-mods"
+                element={
+                  <WizardGuard>
+                    <>
+                      <SEO config={PROBLEMS} />
+                      <UnsupportedModsPage />
+                    </>
+                  </WizardGuard>
+                }
+              />
+              <Route
+                path="/convert"
+                element={
+                  <WizardGuard>
+                    <>
+                      <SEO config={CONVERT} />
+                      <ConversionProgressPage />
+                    </>
+                  </WizardGuard>
+                }
+              />
+              <Route
+                path="/finished"
+                element={
+                  <WizardGuard>
+                    <>
+                      <SEO config={FINISHED} />
+                      <FinishedPage />
+                    </>
+                  </WizardGuard>
+                }
+              />
 
-            {/* Non-wizard routes */}
-            <Route
-              path="/admin"
-              element={
-                <AdminLayout>
-                  <AdminLoginPage />
-                </AdminLayout>
-              }
-            />
-            <Route
-              path="/admin/dashboard"
-              element={
-                <AdminLayout>
-                  <AdminDashboardGuard>
-                    <AdminDashboardPage />
-                  </AdminDashboardGuard>
-                </AdminLayout>
-              }
-            />
+              {/* Non-wizard routes */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminLayout>
+                    <AdminLoginPage />
+                  </AdminLayout>
+                }
+              />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Protected admin dashboard (session validation via backend) */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <Navigate to="/admin/dashboard/welcome" replace />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+
+              <Route
+                path="/admin/dashboard/welcome"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardWelcomePage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/analytics"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardAnalyticsPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/errors"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardErrorsPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/logs"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardLogsPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/activity"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardActivityPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/conversions"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardConversionsPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/system"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardSystemPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/security"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardSecurityPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+              <Route
+                path="/admin/dashboard/settings"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardSettingsPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+
+              {/* Keep original dashboard page available if it is used elsewhere */}
+              <Route
+                path="/admin/dashboard/index"
+                element={
+                  <AdminLayout>
+                    <AdminGuard>
+                      <AdminDashboardPage />
+                    </AdminGuard>
+                  </AdminLayout>
+                }
+              />
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </GlobalErrorReporter>
         </StepLayout>
       </PackBridgeFlowProvider>
     </HelmetProvider>

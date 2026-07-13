@@ -35,3 +35,7 @@ TODO.md
 #--Build--#
 Frontend/dist/
 Backend/build/
+
+# PackPort frontend build artifacts (generated)
+frontend/dist/
+*.tsbuildinfo

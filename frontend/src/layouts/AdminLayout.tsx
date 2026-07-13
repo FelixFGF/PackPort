@@ -1,34 +1,63 @@
-import React, { useEffect } from "react";
-import { Helmet } from "react-helmet-async";
+import React from "react";
+import { useLocation } from "react-router-dom";
+import AdminSidebar from "../components/admin/AdminSidebar";
+import AdminTopBar from "../components/admin/AdminTopBar";
+import { AdminBreadcrumbs, BreadcrumbItem } from "../components/admin/AdminBreadcrumbs";
+import AdminQuickActions from "../components/admin/AdminQuickActions";
 
-const ADMIN_LOGO_SRC = "/assets/images/packport-dev.png";
+type Props = {
+  children: React.ReactNode;
+};
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Ensure the favicon is swapped ONLY while admin pages are rendered.
-  // (Helmet will only apply when this layout is active.)
+function defaultBreadcrumbs(pathname: string): BreadcrumbItem[] {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return [{ label: "Home", to: "/" }];
+  if (parts[0] === "admin" && parts[1] === "dashboard") {
+    const last = parts[2] ?? "welcome";
+    const label = last.replaceAll("-", " ").replace(/^\w/, (c) => c.toUpperCase());
+    return [
+      { label: "Admin", to: "/admin/dashboard/welcome" },
+      { label: label },
+    ];
+  }
+  return [{ label: "Admin", to: "/admin/dashboard/welcome" }];
+}
+
+export function AdminLayout({ children }: Props) {
   return (
-    <>
-      <Helmet>
-        <link rel="icon" href={ADMIN_LOGO_SRC} />
-        <link rel="shortcut icon" href={ADMIN_LOGO_SRC} />
-        <meta name="theme-color" content="#09090b" />
-      </Helmet>
+    <div className="min-h-dvh bg-pp-bg text-pp-text">
+      <div className="flex w-full">
+        <div className="hidden lg:block">
+          <AdminSidebar />
+        </div>
+        <div className="w-full">
+          {/* Top bar + breadcrumbs */}
+          <AdminLayoutShell>{children}</AdminLayoutShell>
 
-      {children}
-    </>
+          {/* quick actions live only on welcome page via page content */}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Keeps layout responsive without changing routing/auth behavior.
+ * Uses the browser path to compute breadcrumbs.
+ */
+function AdminLayoutShell({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const breadcrumbs = defaultBreadcrumbs(location.pathname);
+
+  return (
+    <div className="min-h-dvh">
+      <AdminTopBar breadcrumbs={<AdminBreadcrumbs items={breadcrumbs} />} />
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">{children}</main>
+    </div>
   );
 }
 
 export function AdminLogo({ className }: { className?: string }) {
-  useEffect(() => {
-    // no-op; keeps component stable for future enhancements
-  }, []);
-
-  return (
-    <img
-      src={ADMIN_LOGO_SRC}
-      alt="PackPort DEV"
-      className={className}
-    />
-  );
+  const src = "/assets/images/packport-dev.png";
+  return <img src={src} alt="PackPort DEV" className={className} />;
 }

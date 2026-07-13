@@ -1,0 +1,1 @@
+Placeholder documentation for Security Center schema and audit/event persistence.
