@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -23,6 +25,7 @@ public class ActiveSessionService {
     private final ActiveAdminSessionRepository activeAdminSessionRepository;
     private final LoginAttemptRepository loginAttemptRepository;
     private final SecurityEventService securityEventService;
+    private final boolean dbEnabled;
 
     // Defaults: production configurable via env vars later.
     // If older sessions exist, treat them as expired after 3 days inactivity.
@@ -31,11 +34,13 @@ public class ActiveSessionService {
     public ActiveSessionService(
             ActiveAdminSessionRepository activeAdminSessionRepository,
             LoginAttemptRepository loginAttemptRepository,
-            SecurityEventService securityEventService
+            SecurityEventService securityEventService,
+            @Value("${packport.db.enabled:false}") boolean dbEnabled
     ) {
         this.activeAdminSessionRepository = activeAdminSessionRepository;
         this.loginAttemptRepository = loginAttemptRepository;
         this.securityEventService = securityEventService;
+        this.dbEnabled = dbEnabled;
     }
 
     public static class SessionContext {
@@ -134,6 +139,10 @@ public class ActiveSessionService {
     @Scheduled(fixedDelayString = "${packport.security.session.expire-check-ms:60000}")
     @Transactional
     public void expireInactiveSessions() {
+        if (!dbEnabled) {
+            return;
+        }
+
         OffsetDateTime now = OffsetDateTime.now();
         // Iterate all sessions (expected to be small admin sessions).
         for (ActiveAdminSessionEntity entity : activeAdminSessionRepository.findAll()) {
@@ -165,9 +174,9 @@ public class ActiveSessionService {
 
         var filtered = pageResult.getContent().stream().filter(e ->
                 (e.getSessionId() != null && e.getSessionId().toLowerCase(Locale.ROOT).contains(q)) ||
-                (e.getUsername() != null && e.getUsername().toLowerCase(Locale.ROOT).contains(q)) ||
-                (e.getIpAddress() != null && e.getIpAddress().toLowerCase(Locale.ROOT).contains(q)) ||
-                (e.getBrowser() != null && e.getBrowser().toLowerCase(Locale.ROOT).contains(q))
+                        (e.getUsername() != null && e.getUsername().toLowerCase(Locale.ROOT).contains(q)) ||
+                        (e.getIpAddress() != null && e.getIpAddress().toLowerCase(Locale.ROOT).contains(q)) ||
+                        (e.getBrowser() != null && e.getBrowser().toLowerCase(Locale.ROOT).contains(q))
         ).toList();
 
         // Note: totalElements reported as filtered size because we don't have DB predicate here.
