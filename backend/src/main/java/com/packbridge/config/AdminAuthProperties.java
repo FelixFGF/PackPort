@@ -22,6 +22,21 @@ public class AdminAuthProperties {
 
     @PostConstruct
     void validateAdminAuthConfig() {
+        /*
+         * Dev/local should be able to start without admin env vars so /api/health returns 200.
+         *
+         * Production should enable auth validation explicitly:
+         * PACKPORT_REQUIRE_ADMIN_AUTH=true
+         */
+        boolean requireAdminAuth = environment.getProperty(
+                "PACKPORT_REQUIRE_ADMIN_AUTH",
+                "false"
+        ).equalsIgnoreCase("true");
+
+        if (!requireAdminAuth) {
+            return;
+        }
+
         // Fail fast: only environment variables are allowed (no defaults).
         if (username == null || username.isBlank()) {
             throw new IllegalStateException("Missing required environment variable: ADMIN_USERNAME");
