@@ -178,7 +178,7 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
               "The server is taking longer than expected. Please keep this page open."
             ) : (
               <>
-                Our free server is starting.
+                Our server is starting.
                 <br />
                 This usually takes 30–60 seconds.
               </>
