@@ -68,10 +68,20 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
 
         console.log("status", response.status);
 
-        const text = await response.text();
-        console.log("body", text);
+        // Health endpoint now returns JSON:
+        //   { "status": "UP", "timestamp": "..." }
+        // so consider backend online when status is UP (keep backward compatible with old "OK" text).
+        let connectedNow = false;
 
-        const connectedNow = response.status === 200 && text.trim() === "OK";
+        const contentType = response.headers.get("content-type") ?? "";
+        if (response.status === 200 && contentType.includes("application/json")) {
+          const data = await response.json();
+          connectedNow = data?.status === "UP";
+        } else {
+          const text = await response.text();
+          console.log("body", text);
+          connectedNow = response.status === 200 && text.trim() === "OK";
+        }
 
         if (connectedNow) {
           console.log("connected");
@@ -164,21 +174,21 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
         <div className="text-white">
           <div className="text-3xl font-semibold">Waking up PackPort...</div>
           <div className="mt-3 text-sm text-white/70">
-            {phase === "long"
-              ? "The server is taking longer than expected. Please keep this page open."
-              : <>
-                  Our free server is starting.
-                  <br />
-                  This usually takes 30–60 seconds.
-                </>}
+            {phase === "long" ? (
+              "The server is taking longer than expected. Please keep this page open."
+            ) : (
+              <>
+                Our free server is starting.
+                <br />
+                This usually takes 30–60 seconds.
+              </>
+            )}
           </div>
         </div>
 
         <div className="w-full">
           <div className="mb-2 text-left text-xs font-medium text-white/60">
-            {phase === "connected"
-              ? "Connected!"
-              : "Connecting to backend..."}
+            {phase === "connected" ? "Connected!" : "Connecting to backend..."}
           </div>
 
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -193,9 +203,7 @@ export function StartupLoader({ onConnected }: StartupLoaderProps) {
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-blue-500" />
         </div>
 
-        <div className="mt-1 text-xs text-white/50">
-          PackPort loader: {progress}%
-        </div>
+        <div className="mt-1 text-xs text-white/50">PackPort loader: {progress}%</div>
       </div>
     </div>
   );
