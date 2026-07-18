@@ -1,11 +1,14 @@
 import React from "react";
-import AdminDashboardPlaceholderPage from "./AdminDashboardPlaceholderPage";
+import { DashboardSection } from "../components/admin/dashboard/DashboardPrimitives";
+import { LiveActivityFeed } from "../components/admin/activity/LiveActivityFeed";
 
 export default function AdminDashboardActivityPage() {
   return (
-    <AdminDashboardPlaceholderPage
+    <DashboardSection
       title="Activity"
-      subtitle="Live admin actions & events (placeholder UI)."
-    />
+      subtitle="Live admin activity, uploads, conversions, error reports, and system events."
+    >
+      <LiveActivityFeed />
+    </DashboardSection>
   );
 }

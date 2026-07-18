@@ -1,11 +1,15 @@
 import React from "react";
-import AdminDashboardPlaceholderPage from "./AdminDashboardPlaceholderPage";
+import { AdminLayout } from "../layouts/AdminLayout";
+import { DashboardSection } from "../components/admin/dashboard/DashboardPrimitives";
+import { ErrorReportsTable } from "../components/admin/errors/ErrorReportsTable";
 
 export default function AdminDashboardErrorsPage() {
   return (
-    <AdminDashboardPlaceholderPage
+    <DashboardSection
       title="Errors"
-      subtitle="Failed conversions and issue reporting (placeholder UI)."
-    />
+      subtitle="Enterprise error reporting center with stacktrace, system info, and resolution actions."
+    >
+      <ErrorReportsTable />
+    </DashboardSection>
   );
 }

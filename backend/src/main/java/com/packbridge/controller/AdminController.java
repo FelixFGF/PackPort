@@ -64,14 +64,6 @@ public class AdminController {
         boolean usernameMatches = username.equals(adminAuthProperties.getUsername());
         boolean passwordMatches = passwordEncoder.matches(password, adminAuthProperties.getPasswordHash());
 
-        // TEMP DEBUG logging for admin login failures (DO NOT log password or BCrypt hash)
-        System.out.printf(
-                "[ADMIN_LOGIN_DEBUG] loadedAdminUsername=%s usernameMatches=%s passwordMatches=%s%n",
-                adminAuthProperties.getUsername(),
-                usernameMatches,
-                passwordMatches
-        );
-
         RequestCorrelation correlation = new RequestCorrelation(request);
 
         String clientIp = request.getRemoteAddr();
