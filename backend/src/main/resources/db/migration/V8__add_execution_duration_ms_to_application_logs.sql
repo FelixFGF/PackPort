@@ -1,0 +1,1 @@
+ALTER TABLE application_logs ADD COLUMN execution_duration_ms BIGINT;

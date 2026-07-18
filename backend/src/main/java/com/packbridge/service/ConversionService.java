@@ -64,8 +64,11 @@ public class ConversionService {
             }
 
             // Parse manifest for CURSEFORGE only (so manifestInfo contains real values after upload).
+            // Use the job-scoped path layout: <tempDir>/<jobId>/<uploadId>.zip|.mrpack.
+            // This avoids hardcoding/guessing extensions and supports CurseForge ZIP uploads.
             if (job.getModpackType() == ModpackType.CURSEFORGE) {
-                ManifestInfo manifestInfo = curseForgeManifestParserService.parseManifest(job.getUploadId());
+                ManifestInfo manifestInfo =
+                        curseForgeManifestParserService.parseManifest(job.getUploadId(), job.getJobId());
                 job.setManifestInfo(manifestInfo);
             }
         }
