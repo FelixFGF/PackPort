@@ -45,12 +45,53 @@ public class ModpackDetectorService {
                 .toAbsolutePath().normalize();
     }
 
+    /**
+     * Backward-compatible legacy detection:
+     * <tempDir>/<uploadId>.zip|.mrpack
+     */
     public ModpackType detect(UUID uploadId) throws IOException {
         if (uploadId == null) return ModpackType.UNKNOWN;
 
         Path zipPath = fileStorageLocation.resolve(uploadId + ZIP_EXTENSION);
         Path mrpackPath = fileStorageLocation.resolve(uploadId + MRPACK_EXTENSION);
 
+        return detectFromArchivePaths(uploadId, zipPath, mrpackPath);
+    }
+
+    /**
+     * New detection:
+     * 1) <tempDir>/<jobId>/<uploadId>.zip|.mrpack
+     * 2) fallback to <tempDir>/<uploadId>.zip|.mrpack
+     */
+    public ModpackType detect(UUID uploadId, UUID jobId) throws IOException {
+        if (uploadId == null) return ModpackType.UNKNOWN;
+
+        // Prefer job-aligned location first.
+        Path zipPathJob = null;
+        Path mrpackPathJob = null;
+        if (jobId != null) {
+            Path jobDir = fileStorageLocation.resolve(jobId.toString()).normalize();
+            zipPathJob = jobDir.resolve(uploadId + ZIP_EXTENSION).normalize();
+            mrpackPathJob = jobDir.resolve(uploadId + MRPACK_EXTENSION).normalize();
+        }
+
+        // Legacy fallback.
+        Path zipPathLegacy = fileStorageLocation.resolve(uploadId + ZIP_EXTENSION);
+        Path mrpackPathLegacy = fileStorageLocation.resolve(uploadId + MRPACK_EXTENSION);
+
+        // Job location if readable; otherwise legacy.
+        if (isReadableNonEmpty(zipPathJob) || isReadableNonEmpty(mrpackPathJob)) {
+            return detectFromArchivePaths(uploadId,
+                    zipPathJob,
+                    mrpackPathJob);
+        }
+
+        return detectFromArchivePaths(uploadId,
+                zipPathLegacy,
+                mrpackPathLegacy);
+    }
+
+    private ModpackType detectFromArchivePaths(UUID uploadId, Path zipPath, Path mrpackPath) throws IOException {
         // Prefer zip if it exists and is non-empty; otherwise try mrpack.
         Path archivePath = null;
         String archiveKind = null;

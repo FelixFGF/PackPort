@@ -49,7 +49,7 @@ public class ConversionService {
         if (job.getUploadId() != null) {
             // Ensure modpackType is correctly detected (backend source of truth).
             try {
-                ModpackType detectedType = modpackDetectorService.detect(job.getUploadId());
+                ModpackType detectedType = modpackDetectorService.detect(job.getUploadId(), job.getJobId());
                 job.setModpackType(detectedType);
             } catch (Exception e) {
                 job.setModpackType(ModpackType.UNKNOWN);
